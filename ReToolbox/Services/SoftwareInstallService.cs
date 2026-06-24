@@ -23,7 +23,7 @@ namespace ReToolbox.Services
 
         public List<SoftwareItem> GetSoftwareList() => _softwareItems;
 
-        public async Task<bool> InstallSoftwareAsync(SoftwareItem software, IProgress<string>? progress = null)
+        public async Task<bool> InstallSoftwareAsync(SoftwareItem software, IProgress<string>? progress = null, IProgress<int>? downloadProgress = null)
         {
             progress?.Report($"正在安装 {software.Name}...");
 
@@ -31,11 +31,11 @@ namespace ReToolbox.Services
 
             if (!string.IsNullOrWhiteSpace(software.WingetId))
             {
-                success = await InstallFromWingetAsync(software);
+                success = await InstallFromWingetAsync(software, progress);
             }
             else if (!string.IsNullOrWhiteSpace(software.DownloadUrl))
             {
-                success = await InstallFromUrlAsync(software, progress);
+                success = await InstallFromUrlAsync(software, progress, downloadProgress);
             }
             else
             {
@@ -56,10 +56,12 @@ namespace ReToolbox.Services
             return success;
         }
 
-        private async Task<bool> InstallFromWingetAsync(SoftwareItem software)
+        private async Task<bool> InstallFromWingetAsync(SoftwareItem software, IProgress<string>? progress)
         {
             string result = await Task.Run(() =>
                 CommandHelper.RunCommand($"winget install --id {software.WingetId} --accept-package-agreements --accept-source-agreements --silent", true, true));
+
+            ReportOutput(result, progress);
 
             return !result.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
                    !result.Contains("error", StringComparison.OrdinalIgnoreCase);
@@ -68,7 +70,7 @@ namespace ReToolbox.Services
         // Downloads and launches an installer outside of winget.
         // A DownloadUrl starting with "gh:" resolves the latest GitHub Release asset
         // (e.g. "gh:hooke007/mpv_PlayKit" -> the first .exe asset of the latest release).
-        private async Task<bool> InstallFromUrlAsync(SoftwareItem software, IProgress<string>? progress = null)
+        private async Task<bool> InstallFromUrlAsync(SoftwareItem software, IProgress<string>? progress = null, IProgress<int>? downloadProgress = null)
         {
             try
             {
@@ -80,6 +82,7 @@ namespace ReToolbox.Services
                 {
                     string repo = downloadUrl["gh:".Length..].Trim();
                     string api = $"https://api.github.com/repos/{repo}/releases/latest";
+                    progress?.Report($"正在解析 {software.Name} 最新版本...");
                     string json = await client.GetStringAsync(api);
                     Match match = Regex.Match(json, @"""browser_download_url""\s*:\s*""([^""]+\.exe)""");
                     if (!match.Success)
@@ -98,12 +101,29 @@ namespace ReToolbox.Services
                 using (HttpResponseMessage response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
                 {
                     response.EnsureSuccessStatusCode();
+                    long? total = response.Content.Headers.ContentLength;
                     using Stream remote = await response.Content.ReadAsStreamAsync();
                     using Stream local = File.Create(localPath);
-                    await remote.CopyToAsync(local);
+
+                    byte[] buffer = new byte[81920];
+                    long received = 0;
+                    int read;
+                    while ((read = await remote.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await local.WriteAsync(buffer, 0, read);
+                        received += read;
+
+                        if (total is long size && size > 0)
+                        {
+                            int percent = (int)(received * 100 / size);
+                            downloadProgress?.Report(percent);
+                            progress?.Report($"下载中 {percent}%（{FormatBytes(received)} / {FormatBytes(size)}）");
+                        }
+                    }
+                    downloadProgress?.Report(100);
                 }
 
-                progress?.Report($"正在安装 {software.Name}，请按提示完成...");
+                progress?.Report($"下载完成，启动 {software.Name} 安装程序，请按提示完成...");
                 using (Process process = new Process())
                 {
                     process.StartInfo.FileName = localPath;
@@ -118,6 +138,38 @@ namespace ReToolbox.Services
             {
                 progress?.Report($"{software.Name} 下载安装失败：{ex.Message}");
                 return false;
+            }
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            string[] units = { "B", "KB", "MB", "GB" };
+            double size = bytes;
+            int unit = 0;
+            while (size >= 1024 && unit < units.Length - 1)
+            {
+                size /= 1024;
+                unit++;
+            }
+
+            return $"{size:0.#} {units[unit]}";
+        }
+
+        private static void ReportOutput(string result, IProgress<string>? progress)
+        {
+            if (progress is null || string.IsNullOrWhiteSpace(result))
+            {
+                return;
+            }
+
+            string[] lines = result.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            foreach (string line in lines)
+            {
+                string trimmed = line.Trim();
+                if (!string.IsNullOrWhiteSpace(trimmed))
+                {
+                    progress.Report(trimmed);
+                }
             }
         }
 

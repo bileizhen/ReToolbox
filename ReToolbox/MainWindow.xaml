@@ -44,6 +44,7 @@
             x:Name="NavigationViewControl"
             Grid.RowSpan="2"
             Grid.Column="1"
+            OpenPaneLength="200"
             AlwaysShowHeader="False"
             BackRequested="NavigationViewControl_BackRequested"
             IsPaneToggleButtonVisible="True"
@@ -87,6 +88,11 @@
                 <NavigationViewItem x:Name="EdgeRemover" Content="管理 Edge" Tag="ReToolbox.Views.EdgeRemoverPage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE774;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="Defender" Content="管理 Defender" Tag="ReToolbox.Views.DefenderPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE718;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

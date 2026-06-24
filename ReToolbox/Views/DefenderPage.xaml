@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="ReToolbox.Views.DefenderPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <Style
+            x:Key="AtlasLikeSettingsCardTemplate"
+            BasedOn="{StaticResource ConfigurationSettingsCardTemplate}"
+            TargetType="controls:SettingsCard">
+            <Setter Property="Margin" Value="0,0,36,10" />
+            <Setter Property="MinHeight" Value="80" />
+            <Setter Property="BorderBrush" Value="#0DFFFFFF" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+
+        <Style x:Key="CategoryTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="55,0,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Margin="0,24,0,8"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="管理 Defender" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                <Grid Margin="0,8,36,34">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="78"
+                        Height="78"
+                        Margin="0,0,22,0"
+                        Source="ms-appx:///Assets/DefenderIcon.ico" />
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="10">
+                        <TextBlock
+                            FontSize="24"
+                            FontWeight="SemiBold"
+                            Text="{x:Bind ViewModel.HeroTitle, Mode=OneWay}"
+                            TextWrapping="WrapWholeWords" />
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                FontSize="14"
+                                Text="{x:Bind ViewModel.HeroStatusDetail, Mode=OneWay}" />
+                            <FontIcon
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Foreground="{x:Bind ViewModel.HeroStatusForeground, Mode=OneWay}"
+                                Glyph="{x:Bind ViewModel.HeroStatusGlyph, Mode=OneWay}" />
+                            <TextBlock
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                FontSize="14"
+                                Text="{x:Bind ViewModel.HeroVersionText, Mode=OneWay}" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+
+                <controls:SettingsCard
+                    x:Name="RemoveCard"
+                    Style="{StaticResource AtlasLikeSettingsCardTemplate}"
+                    Description="移除或禁用 Windows Defender（含杀毒、SmartScreen、安全中心等），操作不可逆且会强制重启"
+                    Header="移除 Windows Defender">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE74D;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <Button
+                        x:Name="PrimaryActionButton"
+                        Click="PrimaryAction_Click"
+                        Content="移除 Defender" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
+                    Style="{StaticResource AtlasLikeSettingsCardTemplate}"
+                    Description="打开 Windows 安全中心查看当前防护状态"
+                    Header="打开 Windows 安全中心">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE718;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <Button Click="OpenSecurity_Click" Content="打开" />
+                </controls:SettingsCard>
+
+                <ProgressBar
+                    x:Name="RemoveProgress"
+                    Margin="0,6,36,12"
+                    IsIndeterminate="True"
+                    Visibility="Collapsed" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <InfoBar
+            x:Name="StatusInfoBar"
+            Grid.RowSpan="2"
+            MaxWidth="420"
+            Margin="0,0,36,24"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            IsClosable="True"
+            IsOpen="False"
+            Title="" />
+    </Grid>
+</Page>

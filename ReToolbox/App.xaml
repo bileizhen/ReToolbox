@@ -11,6 +11,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <converters:InvertBoolConverter x:Key="InvertBoolConverter" />
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

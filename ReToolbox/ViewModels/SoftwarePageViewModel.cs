@@ -16,17 +16,23 @@ namespace ReToolbox.ViewModels
 
         public ObservableCollection<SoftwareItem> SoftwareItems { get; }
 
+        // Lines streamed into the install progress dialog.
+        public ObservableCollection<string> InstallLogs { get; } = new();
+
         [ObservableProperty]
         private bool _isInstalling;
 
         [ObservableProperty]
-        private string _statusText = string.Empty;
+        private string _currentItemText = string.Empty;
 
         [ObservableProperty]
-        private int _progressValue;
+        private int _overallProgress;
 
         [ObservableProperty]
-        private string _currentInstalling = string.Empty;
+        private int _downloadProgress;
+
+        [ObservableProperty]
+        private bool _isDownloading;
 
         public SoftwarePageViewModel(SoftwareInstallService installService)
         {
@@ -48,25 +54,45 @@ namespace ReToolbox.ViewModels
         private async Task InstallSelectedAsync()
         {
             var selected = SoftwareItems.Where(s => s.IsSelected).ToList();
-            if (selected.Count == 0) return;
+            if (selected.Count == 0)
+            {
+                return;
+            }
 
             IsInstalling = true;
-            StatusText = $"正在安装 {selected.Count} 个软件...";
-            ProgressValue = 0;
+            InstallLogs.Clear();
+            OverallProgress = 0;
+            DownloadProgress = 0;
+            IsDownloading = false;
 
             int completed = 0;
             int total = selected.Count;
 
             foreach (var item in selected)
             {
-                CurrentInstalling = $"正在安装 {item.Name}... ({completed + 1}/{total})";
-                await _installService.InstallSoftwareAsync(item);
+                CurrentItemText = $"{item.Name}  ({completed + 1}/{total})";
+                // Download progress is only meaningful for items installed from a URL (not winget).
+                IsDownloading = string.IsNullOrWhiteSpace(item.WingetId) &&
+                                !string.IsNullOrWhiteSpace(item.DownloadUrl);
+                DownloadProgress = 0;
+
+                var log = new Progress<string>(message =>
+                    InstallLogs.Add($"[{DateTime.Now:HH:mm:ss}] {message}"));
+
+                var download = new Progress<int>(percent =>
+                {
+                    DownloadProgress = percent;
+                    IsDownloading = percent > 0 && percent < 100;
+                });
+
+                await _installService.InstallSoftwareAsync(item, log, download);
+
                 completed++;
-                ProgressValue = completed * 100 / total;
+                OverallProgress = completed * 100 / total;
+                IsDownloading = false;
             }
 
-            StatusText = "安装完成";
-            CurrentInstalling = string.Empty;
+            CurrentItemText = $"全部完成（共 {total} 项）";
             IsInstalling = false;
         }
 

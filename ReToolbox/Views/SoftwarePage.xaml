@@ -29,26 +29,6 @@
             </ScrollViewer>
         </Grid>
 
-        <StackPanel
-            x:Name="ProgressRingStackPanel"
-            Grid.Row="2"
-            Margin="0,0,0,40"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Bottom"
-            Orientation="Vertical"
-            Visibility="Collapsed">
-            <TextBlock
-                x:Name="CurrentlyInstalling"
-                Text="{x:Bind ViewModel.CurrentInstalling, Mode=OneWay}"
-                TextAlignment="Center" />
-            <ProgressBar
-                x:Name="DownloadingProgressBar"
-                Width="130"
-                HorizontalAlignment="Left"
-                Maximum="100"
-                Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-        </StackPanel>
-
         <Button
             x:Name="InstallButton"
             Grid.Row="2"
@@ -59,5 +39,65 @@
             Content="安装"
             Style="{StaticResource AccentButtonStyle}"
             IsEnabled="{x:Bind ViewModel.IsInstalling, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}" />
+
+        <ContentDialog
+            x:Name="InstallProgressDialog"
+            Title="正在安装软件"
+            DefaultButton="None">
+            <StackPanel Width="500" Spacing="14">
+                <TextBlock
+                    FontWeight="SemiBold"
+                    Text="{x:Bind ViewModel.CurrentItemText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="总体进度" />
+                    <ProgressBar
+                        Maximum="100"
+                        Value="{x:Bind ViewModel.OverallProgress, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel
+                    Spacing="4"
+                    Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="下载进度" />
+                    <ProgressBar
+                        Maximum="100"
+                        Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="日志" />
+                    <ListView
+                        x:Name="InstallLogListView"
+                        Height="230"
+                        Padding="6"
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        ItemsSource="{x:Bind ViewModel.InstallLogs}">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock
+                                    FontFamily="Consolas"
+                                    FontSize="12"
+                                    Text="{Binding}"
+                                    TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </StackPanel>
+        </ContentDialog>
     </Grid>
 </Page>

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Specialized;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -128,13 +130,43 @@ namespace ReToolbox.Views
                 return;
             }
 
-            ProgressRingStackPanel.Visibility = Visibility.Visible;
-            DownloadingProgressBar.Value = 0;
+            // Open a modal progress dialog for the whole batch.
+            InstallProgressDialog.Title = "正在安装软件";
+            InstallProgressDialog.CloseButtonText = null; // no dismiss while running
+            InstallProgressDialog.XamlRoot = this.XamlRoot;
 
-            await ViewModel.InstallSelectedCommand.ExecuteAsync(null);
+            ViewModel.InstallLogs.CollectionChanged += InstallLogs_CollectionChanged;
 
-            ProgressRingStackPanel.Visibility = Visibility.Collapsed;
+            // Show without awaiting; the dialog stays open while the install runs and
+            // progress reports keep its bindings (progress bars + log list) updated.
+            var showOperation = InstallProgressDialog.ShowAsync();
+
+            try
+            {
+                await ViewModel.InstallSelectedCommand.ExecuteAsync(null);
+                InstallProgressDialog.Title = "安装完成";
+            }
+            catch
+            {
+                InstallProgressDialog.Title = "安装出错";
+            }
+            finally
+            {
+                InstallProgressDialog.CloseButtonText = "关闭";
+            }
+
+            await showOperation;
+
+            ViewModel.InstallLogs.CollectionChanged -= InstallLogs_CollectionChanged;
             RefreshCheckBoxes();
+        }
+
+        private void InstallLogs_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (ViewModel.InstallLogs.Count > 0)
+            {
+                InstallLogListView.ScrollIntoView(ViewModel.InstallLogs[^1]);
+            }
         }
     }
 }
