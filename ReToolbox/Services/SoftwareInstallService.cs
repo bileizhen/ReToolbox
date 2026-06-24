@@ -64,7 +64,7 @@ namespace ReToolbox.Services
             var psi = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = $"/c winget install --id {software.WingetId} --accept-package-agreements --accept-source-agreements --silent",
+                Arguments = $"/c winget install --id {software.WingetId} --accept-package-agreements --accept-source-agreements --silent --disable-interactivity",
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -77,18 +77,20 @@ namespace ReToolbox.Services
             process.StartInfo = psi;
             process.Start();
 
-            var output = new System.Text.StringBuilder();
-            var errors = new System.Text.StringBuilder();
+            var output = new StringBuilder();
+            var errors = new StringBuilder();
 
             process.OutputDataReceived += (_, e) =>
             {
                 if (e.Data is null) return;
+                if (IsNoiseLine(e.Data)) return;
                 output.AppendLine(e.Data);
                 progress?.Report(e.Data.Trim());
             };
             process.ErrorDataReceived += (_, e) =>
             {
                 if (e.Data is null) return;
+                if (IsNoiseLine(e.Data)) return;
                 errors.AppendLine(e.Data);
                 progress?.Report(e.Data.Trim());
             };
@@ -101,6 +103,33 @@ namespace ReToolbox.Services
             string all = output.ToString() + errors.ToString();
             return !all.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
                    !all.Contains("error", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // winget renders an animated progress bar and spinner in the terminal using
+        // carriage returns; when captured as a stream these redraw as dozens of junk
+        // lines. Filter them out so only meaningful status text reaches the log.
+        private static bool IsNoiseLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return true;
+            }
+
+            string trimmed = line.Trim();
+
+            // Spinner animation frames: a single "-", "\", "|" or "/" character.
+            if (trimmed.Length == 1 && "-\\|/".Contains(trimmed))
+            {
+                return true;
+            }
+
+            // Progress-bar redraws: lines made of box-drawing blocks (+ KB/MB).
+            if (trimmed.Contains('█') || trimmed.Contains('▒') || trimmed.Contains('░'))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         // Downloads and launches an installer outside of winget.
