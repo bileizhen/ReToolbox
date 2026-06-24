@@ -6,6 +6,7 @@ namespace ReToolbox.Models
     {
         public string Name { get; set; } = string.Empty;
         public string WingetId { get; set; } = string.Empty;
+        public string DownloadUrl { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string IconGlyph { get; set; } = "\uE8A7";

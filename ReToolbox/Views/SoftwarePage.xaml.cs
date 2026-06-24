@@ -24,35 +24,47 @@ namespace ReToolbox.Views
         private void BuildSoftwareList()
         {
             Style? cardStyle = TryGetAppStyle("ConfigurationSettingsCardTemplate");
+            Style? categoryTitleStyle = TryGetAppStyle("CategoryTitleStyle");
             SoftwareListPanel.Children.Clear();
 
-            foreach (var item in ViewModel.SoftwareItems)
+            // GroupBy preserves first-appearance order, matching the order defined in GetDefaultSoftwareList().
+            foreach (var group in ViewModel.SoftwareItems.GroupBy(item => item.Category))
             {
-                var card = new CommunityToolkit.WinUI.Controls.SettingsCard
+                var categoryTitle = new TextBlock
                 {
-                    Header = item.Name,
-                    DataContext = item,
-                    HorizontalContentAlignment = HorizontalAlignment.Right
+                    Text = group.Key,
+                    Style = categoryTitleStyle
                 };
+                SoftwareListPanel.Children.Add(categoryTitle);
 
-                if (cardStyle is not null)
+                foreach (var item in group)
                 {
-                    card.Style = cardStyle;
+                    var card = new CommunityToolkit.WinUI.Controls.SettingsCard
+                    {
+                        Header = item.Name,
+                        DataContext = item,
+                        HorizontalContentAlignment = HorizontalAlignment.Right
+                    };
+
+                    if (cardStyle is not null)
+                    {
+                        card.Style = cardStyle;
+                    }
+
+                    card.HeaderIcon = CreateHeaderIcon(item);
+
+                    var checkBox = new CheckBox
+                    {
+                        IsChecked = item.IsSelected,
+                        DataContext = item,
+                        Margin = new Thickness(0, 0, -75, 0)
+                    };
+                    checkBox.Checked += CheckBox_Checked;
+                    checkBox.Unchecked += CheckBox_Unchecked;
+
+                    card.Content = checkBox;
+                    SoftwareListPanel.Children.Add(card);
                 }
-
-                card.HeaderIcon = CreateHeaderIcon(item);
-
-                var checkBox = new CheckBox
-                {
-                    IsChecked = item.IsSelected,
-                    DataContext = item,
-                    Margin = new Thickness(0, 0, -75, 0)
-                };
-                checkBox.Checked += CheckBox_Checked;
-                checkBox.Unchecked += CheckBox_Unchecked;
-
-                card.Content = checkBox;
-                SoftwareListPanel.Children.Add(card);
             }
         }
 
