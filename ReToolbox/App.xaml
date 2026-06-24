@@ -1,0 +1,16 @@
+<Application
+    x:Class="ReToolbox.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:ReToolbox.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources />
+                <ResourceDictionary Source="Resources/ConfigurationItemTemplate.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:InvertBoolConverter x:Key="InvertBoolConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
