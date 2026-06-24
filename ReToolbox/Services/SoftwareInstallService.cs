@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ReToolbox.Models;
@@ -58,13 +59,48 @@ namespace ReToolbox.Services
 
         private async Task<bool> InstallFromWingetAsync(SoftwareItem software, IProgress<string>? progress)
         {
-            string result = await Task.Run(() =>
-                CommandHelper.RunCommand($"winget install --id {software.WingetId} --accept-package-agreements --accept-source-agreements --silent", true, true));
+            // Read winget output line-by-line as it arrives so the dialog log and
+            // progress update in real time (ReadToEnd blocks until the process ends).
+            var psi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c winget install --id {software.WingetId} --accept-package-agreements --accept-source-agreements --silent",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.GetEncoding(Encoding.Default.CodePage == 936 ? 936 : 65001),
+                StandardErrorEncoding = Encoding.GetEncoding(Encoding.Default.CodePage == 936 ? 936 : 65001)
+            };
 
-            ReportOutput(result, progress);
+            using Process process = new Process();
+            process.StartInfo = psi;
+            process.Start();
 
-            return !result.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
-                   !result.Contains("error", StringComparison.OrdinalIgnoreCase);
+            var output = new System.Text.StringBuilder();
+            var errors = new System.Text.StringBuilder();
+
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (e.Data is null) return;
+                output.AppendLine(e.Data);
+                progress?.Report(e.Data.Trim());
+            };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data is null) return;
+                errors.AppendLine(e.Data);
+                progress?.Report(e.Data.Trim());
+            };
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            await Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
+
+            string all = output.ToString() + errors.ToString();
+            return !all.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
+                   !all.Contains("error", StringComparison.OrdinalIgnoreCase);
         }
 
         // Downloads and launches an installer outside of winget.
@@ -83,7 +119,7 @@ namespace ReToolbox.Services
                     string repo = downloadUrl["gh:".Length..].Trim();
                     string api = $"https://api.github.com/repos/{repo}/releases/latest";
                     progress?.Report($"正在解析 {software.Name} 最新版本...");
-                    string json = await client.GetStringAsync(api);
+                    string json = await client.GetStringAsync(api).ConfigureAwait(false);
                     Match match = Regex.Match(json, @"""browser_download_url""\s*:\s*""([^""]+\.exe)""");
                     if (!match.Success)
                     {
@@ -98,19 +134,19 @@ namespace ReToolbox.Services
                 string localPath = Path.Combine(Path.GetTempPath(), fileName);
 
                 progress?.Report($"正在下载 {software.Name}...");
-                using (HttpResponseMessage response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                using (HttpResponseMessage response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false))
                 {
                     response.EnsureSuccessStatusCode();
                     long? total = response.Content.Headers.ContentLength;
-                    using Stream remote = await response.Content.ReadAsStreamAsync();
+                    using Stream remote = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                     using Stream local = File.Create(localPath);
 
                     byte[] buffer = new byte[81920];
                     long received = 0;
                     int read;
-                    while ((read = await remote.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    while ((read = await remote.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
                     {
-                        await local.WriteAsync(buffer, 0, read);
+                        await local.WriteAsync(buffer, 0, read).ConfigureAwait(false);
                         received += read;
 
                         if (total is long size && size > 0)
@@ -129,7 +165,9 @@ namespace ReToolbox.Services
                     process.StartInfo.FileName = localPath;
                     process.StartInfo.UseShellExecute = true;
                     process.Start();
-                    process.WaitForExit();
+                    // Run the blocking wait off the UI thread so the dialog keeps
+                    // rendering while the self-extractor is open.
+                    await Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
                 }
 
                 return true;
@@ -153,24 +191,6 @@ namespace ReToolbox.Services
             }
 
             return $"{size:0.#} {units[unit]}";
-        }
-
-        private static void ReportOutput(string result, IProgress<string>? progress)
-        {
-            if (progress is null || string.IsNullOrWhiteSpace(result))
-            {
-                return;
-            }
-
-            string[] lines = result.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            foreach (string line in lines)
-            {
-                string trimmed = line.Trim();
-                if (!string.IsNullOrWhiteSpace(trimmed))
-                {
-                    progress.Report(trimmed);
-                }
-            }
         }
 
         public async Task InstallSelectedSoftwareAsync(List<SoftwareItem> selectedItems, IProgress<(string, int)>? progress = null)
