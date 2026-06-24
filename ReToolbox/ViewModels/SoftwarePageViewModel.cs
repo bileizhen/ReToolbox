@@ -71,7 +71,8 @@ namespace ReToolbox.ViewModels
             foreach (var item in selected)
             {
                 CurrentItemText = $"{item.Name}  ({completed + 1}/{total})";
-                // Download progress is only meaningful for items installed from a URL (not winget).
+                // The download progress bar is meaningful both for winget items
+                // (winget reports download progress) and direct-download items (mpv).
                 IsDownloading = string.IsNullOrWhiteSpace(item.WingetId) &&
                                 !string.IsNullOrWhiteSpace(item.DownloadUrl);
                 DownloadProgress = 0;
@@ -82,6 +83,7 @@ namespace ReToolbox.ViewModels
                 var download = new Progress<int>(percent =>
                 {
                     DownloadProgress = percent;
+                    // Show the bar while a download is in progress for any item type.
                     IsDownloading = percent > 0 && percent < 100;
                 });
 

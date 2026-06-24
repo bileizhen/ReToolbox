@@ -32,7 +32,7 @@ namespace ReToolbox.Services
 
             if (!string.IsNullOrWhiteSpace(software.WingetId))
             {
-                success = await InstallFromWingetAsync(software, progress);
+                success = await InstallFromWingetAsync(software, progress, downloadProgress);
             }
             else if (!string.IsNullOrWhiteSpace(software.DownloadUrl))
             {
@@ -57,7 +57,7 @@ namespace ReToolbox.Services
             return success;
         }
 
-        private async Task<bool> InstallFromWingetAsync(SoftwareItem software, IProgress<string>? progress)
+        private async Task<bool> InstallFromWingetAsync(SoftwareItem software, IProgress<string>? progress, IProgress<int>? downloadProgress)
         {
             // Read winget output line-by-line as it arrives so the dialog log and
             // progress update in real time (ReadToEnd blocks until the process ends).
@@ -79,13 +79,33 @@ namespace ReToolbox.Services
 
             var output = new StringBuilder();
             var errors = new StringBuilder();
+            int lastReportedDecile = -1;
 
             process.OutputDataReceived += (_, e) =>
             {
                 if (e.Data is null) return;
-                if (IsNoiseLine(e.Data)) return;
-                output.AppendLine(e.Data);
-                progress?.Report(e.Data.Trim());
+                string line = e.Data;
+
+                // winget redraws its progress bar with carriage returns; captured as a
+                // stream each frame becomes its own line. Parse the percentage out and
+                // drive the download progress bar instead of logging dozens of bars.
+                int? percent = TryParseWingetProgress(line);
+                if (percent.HasValue)
+                {
+                    downloadProgress?.Report(percent.Value);
+                    // Log at most once per 10% so the log stays readable but alive.
+                    int decile = percent.Value / 10;
+                    if (decile != lastReportedDecile)
+                    {
+                        lastReportedDecile = decile;
+                        progress?.Report($"下载中 {percent.Value}%");
+                    }
+                    return;
+                }
+
+                if (IsNoiseLine(line)) return;
+                output.AppendLine(line);
+                progress?.Report(line.Trim());
             };
             process.ErrorDataReceived += (_, e) =>
             {
@@ -99,15 +119,62 @@ namespace ReToolbox.Services
             process.BeginErrorReadLine();
 
             await Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
+            downloadProgress?.Report(100);
 
             string all = output.ToString() + errors.ToString();
             return !all.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
                    !all.Contains("error", StringComparison.OrdinalIgnoreCase);
         }
 
-        // winget renders an animated progress bar and spinner in the terminal using
-        // carriage returns; when captured as a stream these redraw as dozens of junk
-        // lines. Filter them out so only meaningful status text reaches the log.
+        // winget progress lines look like:  ████████▒▒▒▒  138 MB /  286 MB
+        // We can't read the bar reliably, but the byte counts let us compute a percent.
+        private static int? TryParseWingetProgress(string line)
+        {
+            if (!line.Contains('█') && !line.Contains('▒') && !line.Contains('░'))
+            {
+                return null;
+            }
+
+            var matches = Regex.Matches(line, @"(\d+(?:\.\d+)?)\s*([KMG]?B)");
+            if (matches.Count < 2)
+            {
+                return null;
+            }
+
+            if (TryToBytes(matches[0].Groups[1].Value, matches[0].Groups[2].Value, out long received) &&
+                TryToBytes(matches[1].Groups[1].Value, matches[1].Groups[2].Value, out long total) &&
+                total > 0)
+            {
+                int percent = (int)(received * 100 / total);
+                return percent < 0 ? 0 : (percent > 100 ? 100 : percent);
+            }
+
+            return null;
+        }
+
+        private static bool TryToBytes(string value, string unit, out long bytes)
+        {
+            bytes = 0;
+            if (!double.TryParse(value, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out double num))
+            {
+                return false;
+            }
+
+            bytes = unit switch
+            {
+                "B" => (long)num,
+                "KB" => (long)(num * 1024),
+                "MB" => (long)(num * 1024 * 1024),
+                "GB" => (long)(num * 1024 * 1024 * 1024),
+                _ => (long)num
+            };
+            return true;
+        }
+
+        // winget renders an animated spinner in the terminal using carriage returns;
+        // when captured as a stream these redraw as junk lines. Filter them out so
+        // only meaningful status text reaches the log.
         private static bool IsNoiseLine(string line)
         {
             if (string.IsNullOrWhiteSpace(line))
@@ -123,7 +190,8 @@ namespace ReToolbox.Services
                 return true;
             }
 
-            // Progress-bar redraws: lines made of box-drawing blocks (+ KB/MB).
+            // Progress-bar redraws are handled by TryParseWingetProgress; anything still
+            // containing box-drawing blocks but unparseable is also dropped.
             if (trimmed.Contains('█') || trimmed.Contains('▒') || trimmed.Contains('░'))
             {
                 return true;
