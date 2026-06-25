@@ -27,18 +27,33 @@
             VerticalAlignment="Top"
             Background="Transparent"
             Canvas.ZIndex="1">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Image
-                    Width="18"
-                    Margin="12,0,12,0"
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image
+                        Width="18"
+                        Margin="12,0,12,0"
+                        VerticalAlignment="Center"
+                        Source="ms-appx:///Assets/Logo/toolbox-icon.ico" />
+                    <TextBlock
+                        x:Name="AppTitle"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="ReToolbox" />
+                </StackPanel>
+                <!-- Light/dark toggle, anchored to the right of the title bar. -->
+                <Button
+                    x:Name="ThemeToggle"
+                    HorizontalAlignment="Right"
                     VerticalAlignment="Center"
-                    Source="ms-appx:///Assets/Logo/toolbox-icon.ico" />
-                <TextBlock
-                    x:Name="AppTitle"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="ReToolbox" />
-            </StackPanel>
+                    Margin="0,0,140,0"
+                    Padding="8"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="ThemeToggle_Click"
+                    ToolTipService.ToolTip="切换明暗主题">
+                    <FontIcon x:Name="ThemeToggleIcon" Glyph="&#xE793;" />
+                </Button>
+            </Grid>
         </Border>
         <NavigationView
             x:Name="NavigationViewControl"
@@ -69,6 +84,11 @@
                     Icon="Home"
                     Content="主页"
                     Tag="ReToolbox.Views.HomePage" />
+                <NavigationViewItem x:Name="SystemInfo" Content="系统信息" Tag="ReToolbox.Views.SystemInfoPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE950;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="Software" Content="软件安装" Tag="ReToolbox.Views.SoftwarePage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE896;" />

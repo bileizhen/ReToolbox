@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using ReToolbox.Services;
 using System;
 using System.Linq;
 
@@ -20,6 +21,10 @@ namespace ReToolbox
                 AppWindow.TitleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
                 AppWindow.TitleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
             }
+
+            // Apply the stored theme (dark by default) before anything is shown.
+            ThemeService.Init(RootGrid);
+            UpdateThemeIcon();
 
             // 默认选中第一项并导航到主页
             NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems.OfType<NavigationViewItem>().First();
@@ -78,6 +83,22 @@ namespace ReToolbox
             {
                 ContentFrame.Navigate(pageType);
             }
+        }
+
+        private void ThemeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            // Flip between dark and light; Default falls back to whatever is current.
+            ElementTheme next = ThemeService.Current == ElementTheme.Dark
+                ? ElementTheme.Light
+                : ElementTheme.Dark;
+            ThemeService.Apply(RootGrid, next);
+            UpdateThemeIcon();
+        }
+
+        // Sun glyph in dark mode (click to go light), moon glyph in light mode.
+        private void UpdateThemeIcon()
+        {
+            ThemeToggleIcon.Glyph = ThemeService.Current == ElementTheme.Dark ? "\uE793" : "\uE708";
         }
     }
 }
