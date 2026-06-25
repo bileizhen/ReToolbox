@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="ReToolbox.Views.SoftwarePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Margin="55,0,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="9*" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,24,36,12"
+            FontSize="40"
+            FontWeight="SemiBold"
+            Text="安装软件" />
+
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,0,36,12"
+            Orientation="Horizontal"
+            Spacing="8">
+            <Button Click="SelectAll_Click" Content="全选" />
+            <Button Click="DeselectAll_Click" Content="取消全选" />
+            <TextBlock
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}" />
+        </StackPanel>
+
+        <Grid Grid.Row="2">
+            <ScrollViewer Height="Auto" VerticalAlignment="Top">
+                <StackPanel x:Name="SoftwareListPanel" />
+            </ScrollViewer>
+        </Grid>
+
+        <StackPanel
+            x:Name="ProgressRingStackPanel"
+            Grid.Row="3"
+            Margin="0,0,0,40"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Bottom"
+            Orientation="Vertical"
+            Visibility="Collapsed">
+            <TextBlock
+                Text="{x:Bind ViewModel.CurrentInstalling, Mode=OneWay}"
+                TextAlignment="Center" />
+            <ProgressBar
+                Width="130"
+                HorizontalAlignment="Left"
+                Maximum="100"
+                Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
+        </StackPanel>
+
+        <Button
+            x:Name="InstallButton"
+            Grid.Row="3"
+            Margin="0,0,36,20"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Click="InstallSelected_Click"
+            Content="安装"
+            Style="{StaticResource AccentButtonStyle}"
+            IsEnabled="{x:Bind ViewModel.IsInstalling, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}" />
+
+        <InfoBar
+            x:Name="StatusInfoBar"
+            Grid.RowSpan="4"
+            MaxWidth="420"
+            Margin="0,0,36,24"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            IsClosable="True"
+            IsOpen="False"
+            Title="" />
+    </Grid>
+</Page>
