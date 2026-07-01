@@ -10,8 +10,8 @@ A modern Windows desktop toolbox built with WinUI 3 and .NET 8, bundling everyda
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4)](#)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#)
-[![Version](https://img.shields.io/badge/version-1.0.0-2EA44F)](../../releases)
-[![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE.txt)
+[![Version](https://img.shields.io/badge/version-1.2.0-2EA44F)](../../releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE.txt)
 
 </div>
 
@@ -26,10 +26,13 @@ ReToolbox 是一款使用 **WinUI 3 + .NET 8** 开发的 Windows 桌面应用，
 ### 功能
 
 - 🏠 **主页** —— 概览与快捷入口
+- 🖥️ **系统信息** —— 硬件检测(型号/主板/BIOS/处理器/内存/显卡/NPU/显示器/硬盘/声卡/网卡),支持截图导出与详细信息
+- 🧠 **内存管理** —— 内存仪表盘、轻量/深度清理、虚拟内存自适应、定时自动清理、进程内存排行
 - 📦 **软件安装** —— 常用软件一键安装
 - 🔄 **管理更新** —— 管理 Windows 更新
 - 🔑 **系统激活** —— 系统激活相关工具
 - 🌐 **管理 Edge** —— 管理微软 Edge 浏览器
+- 🛡️ **管理 Defender** —— 管理微软 Defender
 
 ### 下载与安装
 
@@ -79,10 +82,13 @@ ReToolbox is a Windows desktop application built with **WinUI 3 + .NET 8**. It s
 ### Features
 
 - 🏠 **Home** — overview and quick actions
+- 🖥️ **System Info** — hardware detection (model / board / BIOS / CPU / memory / GPU / NPU / display / disk / sound / network), with screenshot export and detail view
+- 🧠 **Memory** — memory dashboard, light/deep cleanup, adaptive virtual memory, scheduled auto-cleaning, process memory ranking
 - 📦 **Software** — install common applications
 - 🔄 **Windows Update** — manage Windows updates
 - 🔑 **Activation** — system activation utilities
 - 🌐 **Edge** — manage the Microsoft Edge browser
+- 🛡️ **Defender** — manage Microsoft Defender
 
 ### Download & Install
 
@@ -129,4 +135,6 @@ ReToolbox is inspired by and based on [Atlas-OS/atlas-toolbox](https://github.co
 
 ## 许可证 / License
 
-[MIT License](./LICENSE.txt)
+本项目基于 [Apache License 2.0](./LICENSE.txt) 开源。
+
+Licensed under the Apache License, Version 2.0.
