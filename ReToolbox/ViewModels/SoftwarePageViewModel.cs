@@ -71,20 +71,20 @@ namespace ReToolbox.ViewModels
             foreach (var item in selected)
             {
                 CurrentItemText = $"{item.Name}  ({completed + 1}/{total})";
-                // The download progress bar is meaningful both for winget items
-                // (winget reports download progress) and direct-download items (mpv).
-                IsDownloading = string.IsNullOrWhiteSpace(item.WingetId) &&
-                                !string.IsNullOrWhiteSpace(item.DownloadUrl);
                 DownloadProgress = 0;
+                // Keep the download bar visible during each item. Winget can report
+                // download progress later than the process start, so hiding it until
+                // the first non-zero value makes the UI look stuck.
+                IsDownloading = !string.IsNullOrWhiteSpace(item.WingetId) ||
+                                !string.IsNullOrWhiteSpace(item.DownloadUrl);
 
                 var log = new Progress<string>(message =>
                     InstallLogs.Add($"[{DateTime.Now:HH:mm:ss}] {message}"));
 
                 var download = new Progress<int>(percent =>
                 {
-                    DownloadProgress = percent;
-                    // Show the bar while a download is in progress for any item type.
-                    IsDownloading = percent > 0 && percent < 100;
+                    DownloadProgress = Math.Clamp(percent, 0, 100);
+                    IsDownloading = true;
                 });
 
                 await _installService.InstallSoftwareAsync(item, log, download);

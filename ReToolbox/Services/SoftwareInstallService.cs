@@ -27,6 +27,7 @@ namespace ReToolbox.Services
         public async Task<bool> InstallSoftwareAsync(SoftwareItem software, IProgress<string>? progress = null, IProgress<int>? downloadProgress = null)
         {
             progress?.Report($"正在安装 {software.Name}...");
+            downloadProgress?.Report(0);
 
             bool success;
 
@@ -126,27 +127,38 @@ namespace ReToolbox.Services
                    !all.Contains("error", StringComparison.OrdinalIgnoreCase);
         }
 
-        // winget progress lines look like:  ████████▒▒▒▒  138 MB /  286 MB
-        // We can't read the bar reliably, but the byte counts let us compute a percent.
+        // winget progress lines usually include either a percent or byte counts such
+        // as "138 MB / 286 MB". Avoid relying on the rendered bar characters because
+        // they vary by terminal encoding.
         private static int? TryParseWingetProgress(string line)
         {
-            if (!line.Contains('█') && !line.Contains('▒') && !line.Contains('░'))
+            if (string.IsNullOrWhiteSpace(line))
             {
                 return null;
             }
 
-            var matches = Regex.Matches(line, @"(\d+(?:\.\d+)?)\s*([KMG]?B)");
-            if (matches.Count < 2)
+            var percentMatch = Regex.Match(line, @"(?<!\d)(\d{1,3})\s*%");
+            if (percentMatch.Success &&
+                int.TryParse(percentMatch.Groups[1].Value, out int explicitPercent))
+            {
+                return Math.Clamp(explicitPercent, 0, 100);
+            }
+
+            var bytePair = Regex.Match(
+                line,
+                @"(\d+(?:[\.,]\d+)?)\s*([KMGT]?i?B)\s*/\s*(\d+(?:[\.,]\d+)?)\s*([KMGT]?i?B)",
+                RegexOptions.IgnoreCase);
+            if (!bytePair.Success)
             {
                 return null;
             }
 
-            if (TryToBytes(matches[0].Groups[1].Value, matches[0].Groups[2].Value, out long received) &&
-                TryToBytes(matches[1].Groups[1].Value, matches[1].Groups[2].Value, out long total) &&
+            if (TryToBytes(bytePair.Groups[1].Value, bytePair.Groups[2].Value, out long received) &&
+                TryToBytes(bytePair.Groups[3].Value, bytePair.Groups[4].Value, out long total) &&
                 total > 0)
             {
                 int percent = (int)(received * 100 / total);
-                return percent < 0 ? 0 : (percent > 100 ? 100 : percent);
+                return Math.Clamp(percent, 0, 100);
             }
 
             return null;
@@ -155,18 +167,25 @@ namespace ReToolbox.Services
         private static bool TryToBytes(string value, string unit, out long bytes)
         {
             bytes = 0;
+            value = value.Replace(',', '.');
+
             if (!double.TryParse(value, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out double num))
             {
                 return false;
             }
 
-            bytes = unit switch
+            bytes = unit.ToUpperInvariant() switch
             {
                 "B" => (long)num,
                 "KB" => (long)(num * 1024),
+                "KIB" => (long)(num * 1024),
                 "MB" => (long)(num * 1024 * 1024),
-                "GB" => (long)(num * 1024 * 1024 * 1024),
+                "MIB" => (long)(num * 1024 * 1024),
+                "GB" => (long)(num * 1024L * 1024 * 1024),
+                "GIB" => (long)(num * 1024L * 1024 * 1024),
+                "TB" => (long)(num * 1024L * 1024 * 1024 * 1024),
+                "TIB" => (long)(num * 1024L * 1024 * 1024 * 1024),
                 _ => (long)num
             };
             return true;
@@ -190,9 +209,10 @@ namespace ReToolbox.Services
                 return true;
             }
 
-            // Progress-bar redraws are handled by TryParseWingetProgress; anything still
-            // containing box-drawing blocks but unparseable is also dropped.
-            if (trimmed.Contains('█') || trimmed.Contains('▒') || trimmed.Contains('░'))
+            // Progress redraws are handled by TryParseWingetProgress; anything still
+            // mostly made of terminal drawing characters is also dropped.
+            int drawingChars = trimmed.Count(ch => "█▒░■□".Contains(ch));
+            if (drawingChars > 0 && drawingChars >= trimmed.Length / 2)
             {
                 return true;
             }
