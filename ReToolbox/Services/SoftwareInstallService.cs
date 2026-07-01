@@ -28,6 +28,7 @@ namespace ReToolbox.Services
         public async Task<bool> InstallSoftwareAsync(SoftwareItem software, IProgress<LogEntry>? progress = null, IProgress<int>? downloadProgress = null)
         {
             progress?.Report(LogEntry.Normal($"正在安装 {software.Name}..."));
+            downloadProgress?.Report(0);
 
             bool success;
 
@@ -232,8 +233,28 @@ namespace ReToolbox.Services
         private static readonly Regex WingetDownloadUrl =
             new(@"(?:正在下载|Downloading)\s+(https?://\S+)", RegexOptions.Compiled);
 
+            string all = output.ToString() + errors.ToString();
+            return !all.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
+                   !all.Contains("error", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // winget progress lines usually include either a percent or byte counts such
+        // as "138 MB / 286 MB". Avoid relying on the rendered bar characters because
+        // they vary by terminal encoding.
         private static int? TryParseWingetProgress(string line)
         {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return null;
+            }
+
+            var percentMatch = Regex.Match(line, @"(?<!\d)(\d{1,3})\s*%");
+            if (percentMatch.Success &&
+                int.TryParse(percentMatch.Groups[1].Value, out int explicitPercent))
+            {
+                return Math.Clamp(explicitPercent, 0, 100);
+            }
+
             Match m = ProgressByteRatio.Match(line);
             if (m.Success &&
                 TryToBytes(m.Groups[1].Value, m.Groups[2].Value, out long received) &&
@@ -241,7 +262,15 @@ namespace ReToolbox.Services
                 total > 0)
             {
                 int percent = (int)(received * 100 / total);
-                return percent < 0 ? 0 : (percent > 100 ? 100 : percent);
+                return Math.Clamp(percent, 0, 100);
+            }
+
+            return null;
+        }
+                total > 0)
+            {
+                int percent = (int)(received * 100 / total);
+                return Math.Clamp(percent, 0, 100);
             }
 
             return null;
@@ -250,18 +279,25 @@ namespace ReToolbox.Services
         private static bool TryToBytes(string value, string unit, out long bytes)
         {
             bytes = 0;
+            value = value.Replace(',', '.');
+
             if (!double.TryParse(value, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out double num))
             {
                 return false;
             }
 
-            bytes = unit switch
+            bytes = unit.ToUpperInvariant() switch
             {
                 "B" => (long)num,
                 "KB" => (long)(num * 1024),
+                "KIB" => (long)(num * 1024),
                 "MB" => (long)(num * 1024 * 1024),
-                "GB" => (long)(num * 1024 * 1024 * 1024),
+                "MIB" => (long)(num * 1024 * 1024),
+                "GB" => (long)(num * 1024L * 1024 * 1024),
+                "GIB" => (long)(num * 1024L * 1024 * 1024),
+                "TB" => (long)(num * 1024L * 1024 * 1024 * 1024),
+                "TIB" => (long)(num * 1024L * 1024 * 1024 * 1024),
                 _ => (long)num
             };
             return true;
@@ -285,9 +321,10 @@ namespace ReToolbox.Services
                 return true;
             }
 
-            // Progress-bar redraws are handled by TryParseWingetProgress; anything still
-            // containing box-drawing blocks but unparseable is also dropped.
-            if (trimmed.Contains('█') || trimmed.Contains('▒') || trimmed.Contains('░'))
+            // Progress redraws are handled by TryParseWingetProgress; anything still
+            // mostly made of terminal drawing characters is also dropped.
+            int drawingChars = trimmed.Count(ch => "█▒░■□".Contains(ch));
+            if (drawingChars > 0 && drawingChars >= trimmed.Length / 2)
             {
                 return true;
             }
