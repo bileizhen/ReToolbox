@@ -41,7 +41,7 @@ namespace ReToolbox.ViewModels
         private string _heroStatusGlyph = "\uE946";
 
         [ObservableProperty]
-        private string _heroStatusForeground = "#F3F3F3";
+        private string _heroStatusForeground = "#9CA3AF";
 
         public EdgeRemoverPageViewModel(EdgeRemoverService edgeService)
         {
@@ -60,7 +60,7 @@ namespace ReToolbox.ViewModels
                 HeroStatusText = "已安装";
                 HeroTitle = "Microsoft Edge";
                 HeroStatusGlyph = "\uE73E";
-                HeroStatusForeground = "#4CCB5F";
+                HeroStatusForeground = "#2EA043";
                 HeroStatusDetail = "已安装";
                 HeroVersionText = string.IsNullOrWhiteSpace(EdgeVersion) ? string.Empty : $"版本: {EdgeVersion}";
             }

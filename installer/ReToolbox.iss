@@ -1,5 +1,5 @@
 #define MyAppName "ReToolbox"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "ReToolbox"
 #define MyAppExeName "ReToolbox.exe"
 #define MyPublishDir "..\artifacts\publish\win-x64-new"

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="ReToolbox.Views.HardwareDetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <Style x:Key="DetailRowStyle" TargetType="Grid">
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="ColumnSpacing" Value="6" />
+        </Style>
+
+        <DataTemplate x:Key="DetailRowTemplate">
+            <Grid Style="{StaticResource DetailRowStyle}" Tapped="DetailItem_Tapped" IsTapEnabled="True" ToolTipService.ToolTip="点击复制">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock FontSize="12" Opacity="0.6" Text="{Binding Label}" VerticalAlignment="Center" />
+                <Border Grid.Column="1" Width="1" Height="12" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Text="{Binding Value}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header (fixed, outside the ScrollViewer so it never scrolls away) -->
+        <Grid Padding="28,12,28,2" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button
+                Padding="10,5"
+                Click="BackButton_Click"
+                VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                    <TextBlock FontSize="14" Text="返回" />
+                </StackPanel>
+            </Button>
+            <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                <TextBlock FontSize="26" FontWeight="SemiBold" Text="详细信息" />
+                <TextBlock FontSize="13" Opacity="0.72" Text="完整硬件参数一览" />
+            </StackPanel>
+            <Button
+                x:Name="RefreshButton"
+                Grid.Column="2"
+                Padding="10,5"
+                Click="RefreshButton_Click"
+                VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon x:Name="RefreshIcon" FontSize="14" Glyph="&#xE72C;" />
+                    <TextBlock FontSize="14" Text="刷新" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- Only the cards scroll -->
+        <ScrollViewer
+            Grid.Row="1"
+            Padding="28,0,28,12"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <StackPanel
+                x:Name="LayoutRoot"
+                Spacing="8"
+                MaxWidth="1200"
+                HorizontalAlignment="Stretch">
+
+                <!-- Cards container — populated dynamically in code-behind -->
+                <Grid x:Name="CardsContainer" ColumnSpacing="8" RowSpacing="8" />
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <ProgressRing
+            x:Name="LoadingRing"
+            Grid.RowSpan="2"
+            Width="48"
+            Height="48"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            IsActive="False"
+            Visibility="Collapsed" />
+
+        <InfoBar
+            x:Name="StatusBar"
+            Grid.RowSpan="2"
+            Margin="28"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            IsClosable="True"
+            IsOpen="False" />
+    </Grid>
+</Page>

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ReToolbox.Models;
+using ReToolbox.Utils;
 using ReToolbox.ViewModels;
 
 namespace ReToolbox.Views
@@ -21,6 +22,7 @@ namespace ReToolbox.Views
 
             InitializeComponent();
             BuildSoftwareList();
+            Loaded += (s, e) => PageAnimations.StaggerIn(this);
         }
 
         private void BuildSoftwareList()

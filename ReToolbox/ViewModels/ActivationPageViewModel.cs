@@ -35,7 +35,7 @@ namespace ReToolbox.ViewModels
         private string _activationStatusGlyph = "\uE946";
 
         [ObservableProperty]
-        private string _activationStatusForeground = "#F3F3F3";
+        private string _activationStatusForeground = "#9CA3AF";
 
         public ActivationPageViewModel(ActivationService activationService)
         {
@@ -53,7 +53,7 @@ namespace ReToolbox.ViewModels
                 ActivationStatus = IsActivated ? "Windows 已激活" : "Windows 未激活";
                 ActivationStatusText = IsActivated ? "已激活" : "未激活";
                 ActivationStatusGlyph = IsActivated ? "\uE73E" : "\uE711";
-                ActivationStatusForeground = IsActivated ? "#4CCB5F" : "#FF5F57";
+                ActivationStatusForeground = IsActivated ? "#2EA043" : "#FF5F57";
                 ActivationDetail = _activationService.GetActivationDescription();
             }
             catch

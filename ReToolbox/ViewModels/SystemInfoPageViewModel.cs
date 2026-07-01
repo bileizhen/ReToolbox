@@ -38,7 +38,7 @@ namespace ReToolbox.ViewModels
         private string _adminStatusGlyph = "\uE946";
 
         [ObservableProperty]
-        private string _adminStatusForeground = "#F3F3F3";
+        private string _adminStatusForeground = "#9CA3AF";
 
         public ObservableCollection<DriveInfoItem> Drives { get; }
 
@@ -67,7 +67,7 @@ namespace ReToolbox.ViewModels
             bool isAdmin = _systemInfoService.IsRunningAsAdmin();
             AdminStatusText = isAdmin ? "已以管理员身份运行" : "未以管理员身份运行";
             AdminStatusGlyph = isAdmin ? "\uE73E" : "\uE7BA";
-            AdminStatusForeground = isAdmin ? "#4CCB5F" : "#FFB900";
+            AdminStatusForeground = isAdmin ? "#2EA043" : "#FFB900";
 
             Drives.Clear();
             foreach (var drive in _systemInfoService.GetDriveInfos())

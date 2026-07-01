@@ -40,19 +40,6 @@
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Text="ReToolbox" />
                 </StackPanel>
-                <!-- Light/dark toggle, anchored to the right of the title bar. -->
-                <Button
-                    x:Name="ThemeToggle"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Margin="0,0,140,0"
-                    Padding="8"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Click="ThemeToggle_Click"
-                    ToolTipService.ToolTip="切换明暗主题">
-                    <FontIcon x:Name="ThemeToggleIcon" Glyph="&#xE793;" />
-                </Button>
             </Grid>
         </Border>
         <NavigationView
@@ -89,6 +76,11 @@
                         <FontIcon Glyph="&#xE950;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="Memory" Content="内存管理" Tag="ReToolbox.Views.MemoryPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE964;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="Software" Content="软件安装" Tag="ReToolbox.Views.SoftwarePage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE896;" />
@@ -116,6 +108,25 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem
+                    x:Name="ThemeToggle"
+                    SelectsOnInvoked="False"
+                    Tapped="ThemeToggle_Tapped"
+                    Content="深色模式"
+                    ToolTipService.ToolTip="切换明暗主题">
+                    <NavigationViewItem.Icon>
+                        <FontIcon
+                            x:Name="ThemeIcon"
+                            Glyph="&#xE793;"
+                            RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <RotateTransform x:Name="ThemeIconRotate" Angle="0" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
         </NavigationView>
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="TitleBarStates">

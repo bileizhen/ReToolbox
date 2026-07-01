@@ -25,6 +25,9 @@ namespace ReToolbox
                     services.AddSingleton<EdgeRemoverService>();
                     services.AddSingleton<DefenderService>();
                     services.AddSingleton<SystemInfoService>();
+                    services.AddSingleton<MemoryService>();
+                    services.AddSingleton<VirtualMemoryService>();
+                    services.AddSingleton<MemoryAutoCleanService>();
 
                     services.AddTransient<SoftwarePageViewModel>();
                     services.AddTransient<ActivationPageViewModel>();
@@ -32,6 +35,7 @@ namespace ReToolbox
                     services.AddTransient<EdgeRemoverPageViewModel>();
                     services.AddTransient<DefenderPageViewModel>();
                     services.AddTransient<SystemInfoPageViewModel>();
+                    services.AddTransient<MemoryPageViewModel>();
                     services.AddTransient<SettingsPageViewModel>();
                 })
                 .Build();
@@ -45,6 +49,10 @@ namespace ReToolbox
         {
             MainWindow = new MainWindow();
             MainWindow.Activate();
+
+            // Kick off the background auto-clean schedule if it was enabled in a
+            // previous session. It then runs for the whole app session.
+            _services!.GetService<MemoryAutoCleanService>()?.StartIfNeeded();
         }
     }
 }

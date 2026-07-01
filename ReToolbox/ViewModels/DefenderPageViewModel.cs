@@ -35,7 +35,7 @@ namespace ReToolbox.ViewModels
         private string _heroStatusGlyph = "\uE946";
 
         [ObservableProperty]
-        private string _heroStatusForeground = "#F3F3F3";
+        private string _heroStatusForeground = "#9CA3AF";
 
         public DefenderPageViewModel(DefenderService defenderService)
         {
@@ -53,7 +53,7 @@ namespace ReToolbox.ViewModels
                 HeroStatusText = "正在保护";
                 HeroTitle = "Windows Defender";
                 HeroStatusGlyph = "\uE73E";
-                HeroStatusForeground = "#4CCB5F";
+                HeroStatusForeground = "#2EA043";
                 HeroStatusDetail = "正在保护";
                 HeroVersionText = string.Empty;
             }

@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Management;
 using System.Threading.Tasks;
 using ReToolbox.Utils;
 
@@ -8,15 +10,18 @@ namespace ReToolbox.Services
     {
         private const string MAS_COMMAND = "irm https://get.activated.win | iex";
 
+        // LicenseStatus values from SoftwareLicensingProduct:
+        //   0 = Unlicensed, 1 = Licensed (permanently activated),
+        //   2 = OOB grace, 3 = Out-of-box grace / KMS activated,
+        //   4 = Non-genuine grace, 5 = Notification (not activated),
+        //   6 = Extended grace expired.
+        // Windows is considered activated when a product holding a partial
+        // product key reports status 1 (permanent) or 3 (KMS).
         public bool IsActivated()
         {
             try
             {
-                string result = CommandHelper.RunCommand("cscript //nologo %windir%\\system32\\slmgr.vbs /xpr", true, true);
-                return result.Contains("已永久激活", StringComparison.OrdinalIgnoreCase) ||
-                       result.Contains("permanently activated", StringComparison.OrdinalIgnoreCase) ||
-                       result.Contains("已激活", StringComparison.OrdinalIgnoreCase) ||
-                       result.Contains("activated", StringComparison.OrdinalIgnoreCase);
+                return GetWindowsLicenseStatus() is 1 or 3;
             }
             catch
             {
@@ -24,17 +29,33 @@ namespace ReToolbox.Services
             }
         }
 
+        // Returns the LicenseStatus of the active Windows product, or null if it
+        // cannot be determined. Uses WMI instead of slmgr.vbs because slmgr.vbs
+        // pops up a message box (no stdout) in a non-interactive session.
+        private static int? GetWindowsLicenseStatus()
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "root\\CIMv2",
+                "SELECT LicenseStatus, PartialProductKey, Name FROM SoftwareLicensingProduct WHERE PartialProductKey IS NOT NULL");
+
+            foreach (ManagementObject item in searcher.Get())
+            {
+                var name = item["Name"]?.ToString();
+                // Skip Office and other non-Windows products.
+                if (string.IsNullOrWhiteSpace(name) ||
+                    name.Contains("Office", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (int.TryParse(item["LicenseStatus"]?.ToString(), out int status))
+                    return status;
+            }
+
+            return null;
+        }
+
         public string GetActivationStatus()
         {
-            try
-            {
-                string result = CommandHelper.RunCommand("cscript //nologo %windir%\\system32\\slmgr.vbs /dli", true, true);
-                return result;
-            }
-            catch
-            {
-                return "无法获取激活状态";
-            }
+            return GetActivationDescription();
         }
 
         public string GetWindowsEdition()
@@ -71,21 +92,17 @@ namespace ReToolbox.Services
         {
             try
             {
-                string result = CommandHelper.RunCommand("cscript //nologo %windir%\\system32\\slmgr.vbs /xpr", true, true);
-
-                if (result.Contains("已永久激活", StringComparison.OrdinalIgnoreCase) ||
-                    result.Contains("permanently activated", StringComparison.OrdinalIgnoreCase))
+                var status = GetWindowsLicenseStatus();
+                return status switch
                 {
-                    return "Windows 已使用数字许可证激活。";
-                }
-
-                if (result.Contains("已激活", StringComparison.OrdinalIgnoreCase) ||
-                    result.Contains("activated", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "Windows 当前已激活。";
-                }
-
-                return "Windows 当前未激活。";
+                    1 => "Windows 已使用数字许可证永久激活。",
+                    3 => "Windows 已激活(KMS)。",
+                    2 => "Windows 处于 OOB 宽限期内,尚未永久激活。",
+                    4 => "Windows 处于非正版宽限期。",
+                    5 => "Windows 当前未激活。",
+                    6 => "Windows 宽限期已过。",
+                    _ => "无法确定 Windows 激活状态。"
+                };
             }
             catch
             {
