@@ -233,11 +233,6 @@ namespace ReToolbox.Services
         private static readonly Regex WingetDownloadUrl =
             new(@"(?:正在下载|Downloading)\s+(https?://\S+)", RegexOptions.Compiled);
 
-            string all = output.ToString() + errors.ToString();
-            return !all.Contains("失败", StringComparison.OrdinalIgnoreCase) &&
-                   !all.Contains("error", StringComparison.OrdinalIgnoreCase);
-        }
-
         // winget progress lines usually include either a percent or byte counts such
         // as "138 MB / 286 MB". Avoid relying on the rendered bar characters because
         // they vary by terminal encoding.
@@ -259,14 +254,6 @@ namespace ReToolbox.Services
             if (m.Success &&
                 TryToBytes(m.Groups[1].Value, m.Groups[2].Value, out long received) &&
                 TryToBytes(m.Groups[3].Value, m.Groups[4].Value, out long total) &&
-                total > 0)
-            {
-                int percent = (int)(received * 100 / total);
-                return Math.Clamp(percent, 0, 100);
-            }
-
-            return null;
-        }
                 total > 0)
             {
                 int percent = (int)(received * 100 / total);

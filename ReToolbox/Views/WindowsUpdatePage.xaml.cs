@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using ReToolbox.Services;
+using ReToolbox.Utils;
 using ReToolbox.ViewModels;
 
 namespace ReToolbox.Views
@@ -29,6 +30,7 @@ namespace ReToolbox.Views
 
             InitializeComponent();
             Loaded += WindowsUpdatePage_Loaded;
+            Loaded += (s, e) => PageAnimations.StaggerIn(this);
 
             _statusTimer = DispatcherQueue.CreateTimer();
             _statusTimer.Interval = TimeSpan.FromSeconds(3);

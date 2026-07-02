@@ -19,6 +19,12 @@
             <Setter Property="CornerRadius" Value="12" />
         </Style>
 
+        <Style x:Key="CategoryTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
     </Page.Resources>
 
     <Grid Margin="55,0,0,0">
@@ -80,8 +86,8 @@
 
                 <controls:SettingsCard
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                    Description="使用 MAS (Microsoft Activation Scripts) 激活 Windows"
-                    Header="一键激活">
+                    Description="打开 MAS 汉化版的中文菜单，可在其中激活 Windows 或切换版本（家庭版→专业版等）。"
+                    Header="一键激活 / 切换版本">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE977;" />
                     </controls:SettingsCard.HeaderIcon>
@@ -105,8 +111,14 @@
                         <FontIcon Glyph="&#xE946;" />
                     </controls:SettingsExpander.HeaderIcon>
                     <controls:SettingsExpander.Items>
-                        <controls:SettingsCard Description="MAS 是一个开源的 Windows 和 Office 激活工具" Header="MAS 项目">
+                        <controls:SettingsCard Description="MAS 是一个开源的 Windows 和 Office 激活工具（GPL-3.0）" Header="MAS 官方项目">
                             <HyperlinkButton Content="访问 GitHub" NavigateUri="https://github.com/massgravel/Microsoft-Activation-Scripts" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Description="由 cmontage 提供的中文汉化版，本应用调用的即为汉化版菜单" Header="MAS 汉化版">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <HyperlinkButton Content="GitHub" NavigateUri="https://github.com/cmontage/mas-cn" />
+                                <HyperlinkButton Content="Gitee 镜像" NavigateUri="https://gitee.com/cmontage/mas-cn" />
+                            </StackPanel>
                         </controls:SettingsCard>
                         <controls:SettingsCard Description="支持 Windows 和 Office 的永久激活" Header="支持的产品">
                             <TextBlock VerticalAlignment="Center" Text="Windows 10/11, Office 2016-2024" />

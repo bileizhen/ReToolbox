@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Management;
 using System.Threading.Tasks;
@@ -8,7 +9,9 @@ namespace ReToolbox.Services
 {
     public class ActivationService
     {
-        private const string MAS_COMMAND = "irm https://get.activated.win | iex";
+        // MAS 汉化版 (cmontage/mas-cn)：接口与官方版完全一致，弹出的是中文菜单。
+        // 汉化版仓库: https://github.com/cmontage/mas-cn (GPL-3.0)
+        private const string MAS_CN_COMMAND = "irm https://gitee.com/cmontage/mas-cn/raw/main/GETMASCN.ps1 | iex";
 
         // LicenseStatus values from SoftwareLicensingProduct:
         //   0 = Unlicensed, 1 = Licensed (permanently activated),
@@ -110,42 +113,37 @@ namespace ReToolbox.Services
             }
         }
 
+        // Launches the MAS 汉化版 in a visible PowerShell window. MAS is an
+        // interactive TUI menu, so it must own a real console (CreateNoWindow /
+        // redirected stdout would hide the menu and make it unselectable). The
+        // app already runs elevated (requireAdministrator in app.manifest), so the
+        // child inherits admin rights; Verb=runas is a harmless belt-and-braces.
         public async Task<bool> ActivateAsync(IProgress<string>? progress = null)
         {
-            progress?.Report("正在启动 MAS 激活脚本...");
+            progress?.Report("正在打开 MAS 汉化版(中文菜单)...");
 
             try
             {
-                string result = await Task.Run(() =>
-                    CommandHelper.RunPowerShellCommand("irm https://get.activated.win | iex", false));
+                await Task.Run(() =>
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{MAS_CN_COMMAND}\"",
+                        UseShellExecute = true,
+                        Verb = "runas",
+                        WindowStyle = ProcessWindowStyle.Normal
+                    };
+                    using var proc = Process.Start(psi);
+                    proc?.WaitForExit();
+                });
 
-                progress?.Report("激活脚本执行完成");
+                progress?.Report("MAS 窗口已关闭，请点击「刷新状态」查看激活结果");
                 return true;
             }
             catch (Exception ex)
             {
-                progress?.Report($"激活失败: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> ActivateWindowsAsync(IProgress<string>? progress = null)
-        {
-            progress?.Report("正在激活 Windows...");
-
-            try
-            {
-                string result = await Task.Run(() =>
-                    CommandHelper.RunCommand(
-                        "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://massgrave.dev/Get | iex\"",
-                        true, true));
-
-                progress?.Report("激活命令已执行");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                progress?.Report($"激活失败: {ex.Message}");
+                progress?.Report($"启动失败: {ex.Message}");
                 return false;
             }
         }

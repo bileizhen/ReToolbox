@@ -25,11 +25,12 @@ namespace ReToolbox.Views
         {
             ActivateButton.IsEnabled = false;
             StatusInfoBar.IsOpen = true;
-            StatusInfoBar.Message = "正在执行激活脚本...";
+            StatusInfoBar.Message = "正在打开 MAS 汉化版，请在弹出的中文窗口中操作...";
             StatusInfoBar.Severity = InfoBarSeverity.Informational;
 
             await ViewModel.ActivateCommand.ExecuteAsync(null);
 
+            // 用户关闭 MAS 窗口后回到这里，刷新状态以反映激活结果。
             StatusInfoBar.Message = ViewModel.StatusMessage;
             StatusInfoBar.Severity = ViewModel.IsActivated ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
             ActivateButton.IsEnabled = true;

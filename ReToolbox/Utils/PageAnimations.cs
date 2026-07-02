@@ -49,30 +49,84 @@ namespace ReToolbox.Utils
             return null;
         }
 
-        // Collects direct children that should animate. For a Grid/StackPanel we
-        // take the top-level children; for nested layouts we go one level deep.
+        // Collects the elements that should stagger in. Unlike a flat walk, this
+        // drills into ScrollViewer/Border wrappers so the *cards inside* become
+        // the staggered targets — otherwise the whole scroll area slides in as
+        // one block and you never see the "one-by-one" effect.
         private static List<FrameworkElement> CollectAnimatableChildren(FrameworkElement root)
         {
             var result = new List<FrameworkElement>();
+            AppendChildren(root, result);
+            return result;
+        }
 
-            if (root is Panel panel)
+        // Recursively collects animatable children, unpacking layout wrappers so
+        // the real cards (SettingsCard, grids with content, etc.) are what we
+        // animate. Skips InfoBars and named overlay elements.
+        private static void AppendChildren(FrameworkElement element, List<FrameworkElement> result)
+        {
+            foreach (var child in GetLogicalChildren(element))
+            {
+                if (child is not FrameworkElement fe) continue;
+                if (fe.Visibility != Visibility.Visible) continue;
+                // InfoBar is an overlay/toast; it manages its own transforms
+                // (e.g. WindowsUpdatePage animates it on status changes), so we
+                // must not hijack it here.
+                if (fe is InfoBar) continue;
+
+                if (IsLayoutWrapper(fe))
+                {
+                    // Drill into wrappers (ScrollViewer, Border, single-child
+                    // panels) to reach the actual content below.
+                    AppendChildren(fe, result);
+                }
+                else
+                {
+                    result.Add(fe);
+                }
+            }
+        }
+
+        // True for containers whose only job is to host other content (so we
+        // should look *through* them rather than animate the wrapper itself).
+        private static bool IsLayoutWrapper(FrameworkElement element)
+        {
+            return element is ScrollViewer
+                || element is Border
+                || element is ContentControl
+                || element is ContentPresenter;
+        }
+
+        // Yields the children of a panel/grid in declaration order. Returns an
+        // empty enumerable for non-container elements.
+        private static System.Collections.IEnumerable GetLogicalChildren(DependencyObject parent)
+        {
+            if (parent is Panel panel)
             {
                 foreach (var child in panel.Children)
-                {
-                    if (child is FrameworkElement fe && fe.Visibility == Visibility.Visible)
-                        result.Add(fe);
-                }
+                    yield return child;
             }
-            else if (root is Grid grid)
+            else if (parent is Grid grid)
             {
                 foreach (var child in grid.Children)
-                {
-                    if (child is FrameworkElement fe && fe.Visibility == Visibility.Visible)
-                        result.Add(fe);
-                }
+                    yield return child;
             }
-
-            return result;
+            else if (parent is Border border && border.Child is not null)
+            {
+                yield return border.Child;
+            }
+            else if (parent is ContentControl cc && cc.Content is DependencyObject content)
+            {
+                yield return content;
+            }
+            else if (parent is ContentPresenter cp && cp.Content is DependencyObject cpContent)
+            {
+                yield return cpContent;
+            }
+            else if (parent is ScrollViewer sv && sv.Content is not null)
+            {
+                yield return sv.Content;
+            }
         }
 
         // Single-element fade + slide-up entrance.
