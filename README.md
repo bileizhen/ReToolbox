@@ -6,10 +6,17 @@
 
 **A modern toolbox for Windows, built with WinUI 3 & .NET 8.**
 
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4)](#)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#)
+[![Version](https://img.shields.io/badge/version-1.3.0-2EA44F)](../../releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE.txt)
+
+</div>
+
 ---
 
 <p>
-  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.2.0-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
+  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.3.0-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
   <a href="../../releases"><img src="https://img.shields.io/badge/download-Setup.exe-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="Download"/></a>
   <a href="./LICENSE.txt"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="License"/></a>
   <a href="#-从源码构建-build-from-source"><img src="https://img.shields.io/badge/build-passing-2EA44F?style=for-the-badge&logo=appveyor&logoColor=white" alt="Build"/></a>
@@ -163,6 +170,10 @@
   - 或单独安装 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) + MSBuild
 - [Inno Setup 6](https://jrsoftware.org/isdl.php)（用于编译安装程序）
 
+**安全说明**
+
+ReToolbox 仅通过 Windows Package Manager (`winget`) 安装软件，并以退出代码和安装状态复核结果。由于当前无法为 MAS、EdgeRemover、Defender Remover 和第三方直装包建立独立可信的固定摘要，这些远程下载后以管理员权限执行的入口已安全禁用。请勿从未知镜像手动运行替代脚本。
+
 **🚀 一键发布**
 
 ```powershell
@@ -177,7 +188,7 @@
 msbuild ReToolbox\ReToolbox.csproj /t:Restore,Publish `
     /p:Configuration=Release /p:Platform=x64 `
     /p:RuntimeIdentifier=win-x64 `
-    /p:PublishDir=artifacts\publish\win-x64-new
+    /p:PublishDir=artifacts\publish\win-x64
 
 # 2. 使用 Inno Setup 编译安装程序
 ISCC.exe installer\ReToolbox.iss
@@ -304,6 +315,10 @@ No ads, no bundles — focused on getting things done.
   - Or [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) + MSBuild
 - [Inno Setup 6](https://jrsoftware.org/isdl.php) (to compile the installer)
 
+**Security note**
+
+Software installation now stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Remote administrator-level execution paths for MAS, EdgeRemover, Defender Remover, and direct third-party installers are disabled until independently trusted pinned hashes or publisher verification can be provided.
+
 **🚀 One-Click Build**
 
 ```powershell
@@ -318,7 +333,7 @@ No ads, no bundles — focused on getting things done.
 msbuild ReToolbox\ReToolbox.csproj /t:Restore,Publish `
     /p:Configuration=Release /p:Platform=x64 `
     /p:RuntimeIdentifier=win-x64 `
-    /p:PublishDir=artifacts\publish\win-x64-new
+    /p:PublishDir=artifacts\publish\win-x64
 
 # 2. Compile the installer with Inno Setup
 ISCC.exe installer\ReToolbox.iss
@@ -386,8 +401,7 @@ A: Yes. The solution includes an ARM64 configuration so you can publish native A
 
 ### 🙏 致谢 / Acknowledgements
 
-ReToolbox is inspired by and based on
-[**Atlas-OS/atlas-toolbox**](https://github.com/Atlas-OS/atlas-toolbox).
+ReToolbox acknowledges [**Atlas-OS/atlas-toolbox**](https://github.com/Atlas-OS/atlas-toolbox) as a design and product reference. Maintainers must complete a source-provenance review before release to determine whether any adapted code carries GPL-3.0 obligations; see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 <br/>
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,6 +14,7 @@ namespace ReToolbox.ViewModels
     public partial class SoftwarePageViewModel : ObservableObject
     {
         private readonly SoftwareInstallService _installService;
+        private CancellationTokenSource? _installCts;
 
         public ObservableCollection<SoftwareItem> SoftwareItems { get; }
 
@@ -60,6 +62,9 @@ namespace ReToolbox.ViewModels
             }
 
             IsInstalling = true;
+            _installCts?.Dispose();
+            _installCts = new CancellationTokenSource();
+            CancellationToken cancellationToken = _installCts.Token;
             InstallLogs.Clear();
             OverallProgress = 0;
             DownloadProgress = 0;
@@ -68,46 +73,61 @@ namespace ReToolbox.ViewModels
             int completed = 0;
             int total = selected.Count;
 
-            foreach (var item in selected)
+            try
             {
-                CurrentItemText = $"{item.Name}  ({completed + 1}/{total})";
-                DownloadProgress = 0;
-                // Keep the download bar visible during each item. Winget can report
-                // download progress later than the process start, so hiding it until
-                // the first non-zero value makes the UI look stuck.
-                IsDownloading = !string.IsNullOrWhiteSpace(item.WingetId) ||
-                                !string.IsNullOrWhiteSpace(item.DownloadUrl);
-
-                var log = new Progress<LogEntry>(entry =>
+                foreach (var item in selected)
                 {
-                    string line = $"[{DateTime.Now:HH:mm:ss}] {entry.Text}";
-                    // A Progress entry (winget bar redraw / download chunk) refreshes
-                    // the last line in place instead of scrolling a new row in.
-                    if (entry.Kind == LogEntryKind.Progress && InstallLogs.Count > 0)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    CurrentItemText = $"{item.Name}  ({completed + 1}/{total})";
+                    DownloadProgress = 0;
+                    IsDownloading = !string.IsNullOrWhiteSpace(item.WingetId);
+
+                    var log = new Progress<LogEntry>(entry =>
                     {
-                        InstallLogs[InstallLogs.Count - 1] = line;
-                    }
-                    else
+                        string line = $"[{DateTime.Now:HH:mm:ss}] {entry.Text}";
+                        if (entry.Kind == LogEntryKind.Progress && InstallLogs.Count > 0)
+                        {
+                            InstallLogs[InstallLogs.Count - 1] = line;
+                        }
+                        else
+                        {
+                            InstallLogs.Add(line);
+                        }
+                    });
+
+                    var download = new Progress<int>(percent =>
                     {
-                        InstallLogs.Add(line);
-                    }
-                });
+                        DownloadProgress = Math.Clamp(percent, 0, 100);
+                        IsDownloading = true;
+                    });
 
-                var download = new Progress<int>(percent =>
-                {
-                    DownloadProgress = Math.Clamp(percent, 0, 100);
-                    IsDownloading = true;
-                });
+                    await _installService.InstallSoftwareAsync(item, log, download, cancellationToken);
 
-                await _installService.InstallSoftwareAsync(item, log, download);
+                    completed++;
+                    OverallProgress = completed * 100 / total;
+                    IsDownloading = false;
+                }
 
-                completed++;
-                OverallProgress = completed * 100 / total;
-                IsDownloading = false;
+                CurrentItemText = $"全部完成（共 {total} 项）";
             }
+            catch (OperationCanceledException)
+            {
+                InstallLogs.Add($"[{DateTime.Now:HH:mm:ss}] 安装已取消");
+                CurrentItemText = "安装已取消";
+            }
+            finally
+            {
+                IsDownloading = false;
+                IsInstalling = false;
+                _installCts?.Dispose();
+                _installCts = null;
+            }
+        }
 
-            CurrentItemText = $"全部完成（共 {total} 项）";
-            IsInstalling = false;
+        [RelayCommand]
+        private void CancelInstall()
+        {
+            _installCts?.Cancel();
         }
 
         [RelayCommand]

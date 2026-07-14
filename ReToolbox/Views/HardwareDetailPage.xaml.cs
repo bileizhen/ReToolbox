@@ -383,6 +383,19 @@ namespace ReToolbox.Views
             return string.Join(" | ", values.Where(v => !string.IsNullOrWhiteSpace(v)));
         }
 
+        private void DetailItem_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key is not (Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Space) ||
+                sender is not FrameworkElement element ||
+                element.DataContext is not HardwareInfoItem item)
+            {
+                return;
+            }
+
+            CopyToClipboard(item.Value);
+            e.Handled = true;
+        }
+
         private void DetailItem_Tapped(object sender, TappedRoutedEventArgs e)
         {
             if (sender is not FrameworkElement fe) return;

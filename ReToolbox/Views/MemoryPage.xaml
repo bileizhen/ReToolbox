@@ -263,7 +263,7 @@
                     FontSize="13"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Text="{x:Bind ViewModel.PagefileResultText, Mode=OneWay}"
-                    Visibility="{x:Bind PagefileResultVisibility, Mode=OneWay}" />
+                    Visibility="{x:Bind PagefileResultVisibility, Mode=OneTime}" />
 
                 <!-- Auto clean -->
                 <TextBlock
@@ -361,15 +361,15 @@
                             <controls:SettingsCard
                                 Margin="0,0,0,6"
                                 Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                                Description="{x:Bind DisplayText, Mode=OneWay}"
-                                Header="{x:Bind ProcessName, Mode=OneWay}">
+                                Description="{x:Bind DisplayText, Mode=OneTime}"
+                                Header="{x:Bind ProcessName, Mode=OneTime}">
                                 <controls:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE7B4;" />
                                 </controls:SettingsCard.HeaderIcon>
                                 <Button
                                     Click="TrimProcess_Click"
                                     Content="削减"
-                                    Tag="{x:Bind ProcessId, Mode=OneWay}" />
+                                    Tag="{x:Bind ProcessId, Mode=OneTime}" />
                             </controls:SettingsCard>
                         </DataTemplate>
                     </ItemsRepeater.ItemTemplate>

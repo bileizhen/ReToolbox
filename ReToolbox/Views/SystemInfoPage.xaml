@@ -192,12 +192,13 @@
     </Page.Resources>
 
     <Grid Background="Transparent">
-        <Border x:Name="RootHost">
-            <Grid
-                x:Name="LayoutRoot"
-                Width="1100"
-                Padding="32,20,32,20"
-                RowSpacing="16">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+        <Grid
+            x:Name="LayoutRoot"
+            MaxWidth="1100"
+            HorizontalAlignment="Stretch"
+            Padding="32,20,32,20"
+            RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -271,7 +272,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <Border x:Name="Card1" Style="{StaticResource MetricCardStyle}" PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" Tapped="Card1_Tapped" IsTapEnabled="True" ToolTipService.ToolTip="点击复制">
+                    <Border x:Name="Card1" Style="{StaticResource MetricCardStyle}" PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" Tapped="Card1_Tapped" KeyDown="CopyElement_KeyDown" IsTapEnabled="True" IsTabStop="True" AutomationProperties.Name="复制型号信息" AutomationProperties.HelpText="按 Enter 或空格复制" ToolTipService.ToolTip="点击或按 Enter 复制">
                         <Grid ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="48" />
@@ -295,7 +296,7 @@
                         </Grid>
                     </Border>
 
-                    <Border x:Name="Card2" Grid.Column="1" Style="{StaticResource MetricCardStyle}" PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" Tapped="Card2_Tapped" IsTapEnabled="True" ToolTipService.ToolTip="点击复制">
+                    <Border x:Name="Card2" Grid.Column="1" Style="{StaticResource MetricCardStyle}" PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" Tapped="Card2_Tapped" KeyDown="CopyElement_KeyDown" IsTapEnabled="True" IsTabStop="True" AutomationProperties.Name="复制系统信息" AutomationProperties.HelpText="按 Enter 或空格复制" ToolTipService.ToolTip="点击或按 Enter 复制">
                         <Grid ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="48" />
@@ -319,7 +320,7 @@
                         </Grid>
                     </Border>
 
-                    <Border x:Name="Card3" Grid.Column="2" Style="{StaticResource MetricCardStyle}" PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" Tapped="Card3_Tapped" IsTapEnabled="True" ToolTipService.ToolTip="点击复制">
+                    <Border x:Name="Card3" Grid.Column="2" Style="{StaticResource MetricCardStyle}" PointerEntered="Card_PointerEntered" PointerExited="Card_PointerExited" Tapped="Card3_Tapped" KeyDown="CopyElement_KeyDown" IsTapEnabled="True" IsTabStop="True" AutomationProperties.Name="复制运行时间" AutomationProperties.HelpText="按 Enter 或空格复制" ToolTipService.ToolTip="点击或按 Enter 复制">
                         <Grid ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="48" />
@@ -336,7 +337,6 @@
                                 <TextBlock FontSize="15" Opacity="0.68" Text="运行时间" />
                                 <TextBlock
                                     x:Name="UptimeText"
-                                    Width="220"
                                     HorizontalAlignment="Left"
                                     FontSize="20"
                                     FontWeight="SemiBold"
@@ -373,8 +373,12 @@
                                         Padding="16,9"
                                         ColumnSpacing="14"
                                         IsTapEnabled="True"
+                                        IsTabStop="True"
+                                        KeyDown="CopyElement_KeyDown"
+                                        AutomationProperties.Name="复制硬件详情"
+                                        AutomationProperties.HelpText="按 Enter 或空格复制"
                                         Tapped="DetailItem_Tapped"
-                                        ToolTipService.ToolTip="点击复制">
+                                        ToolTipService.ToolTip="点击或按 Enter 复制">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90" />
                                             <ColumnDefinition Width="Auto" />
@@ -414,8 +418,8 @@
                         </ItemsRepeater>
                     </Border>
                 </StackPanel>
-            </Grid>
-        </Border>
+        </Grid>
+    </ScrollViewer>
 
         <ProgressRing
             x:Name="LoadingRing"

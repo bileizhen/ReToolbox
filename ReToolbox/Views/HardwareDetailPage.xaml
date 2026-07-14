@@ -28,7 +28,7 @@
         </Style>
 
         <DataTemplate x:Key="DetailRowTemplate">
-            <Grid Style="{StaticResource DetailRowStyle}" Tapped="DetailItem_Tapped" IsTapEnabled="True" ToolTipService.ToolTip="点击复制">
+            <Grid Style="{StaticResource DetailRowStyle}" Tapped="DetailItem_Tapped" KeyDown="DetailItem_KeyDown" IsTapEnabled="True" IsTabStop="True" AutomationProperties.Name="复制硬件详情" AutomationProperties.HelpText="按 Enter 或空格复制" ToolTipService.ToolTip="点击或按 Enter 复制">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="90" />
                     <ColumnDefinition Width="Auto" />

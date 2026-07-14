@@ -37,7 +37,7 @@ namespace ReToolbox.Utils
         /// or newline terminated). Completes when the process exits, or when
         /// <paramref name="cancellationToken"/> is cancelled (the child is terminated).
         /// </summary>
-        public static async Task RunAsync(string commandLine, Encoding encoding, Action<string> onLine, CancellationToken cancellationToken = default)
+        public static async Task<int> RunAsync(string commandLine, Encoding encoding, Action<string> onLine, CancellationToken cancellationToken = default)
         {
             var sa = new SECURITY_ATTRIBUTES { nLength = Marshal.SizeOf<SECURITY_ATTRIBUTES>() };
 
@@ -129,6 +129,17 @@ namespace ReToolbox.Utils
                     Native.ClosePseudoConsole(hPC);
                     hPC = IntPtr.Zero;
                     await readTask.ConfigureAwait(false);
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
+
+                    if (Native.GetExitCodeProcess(pi.hProcess, out uint exitCode) == 0)
+                    {
+                        throw new Win32Exception(Marshal.GetLastSystemError());
+                    }
+
+                    return unchecked((int)exitCode);
                 }
                 finally
                 {
@@ -302,6 +313,9 @@ namespace ReToolbox.Utils
 
             [DllImport("kernel32.dll")]
             public static extern int WaitForSingleObject(IntPtr hHandle, int dwMilliseconds);
+
+            [DllImport("kernel32.dll")]
+            public static extern int GetExitCodeProcess(IntPtr hProcess, out uint lpExitCode);
 
             [DllImport("kernel32.dll")]
             public static extern int TerminateProcess(IntPtr hProcess, int uExitCode);

@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Foundation;
+using Windows.UI.ViewManagement;
 
 namespace ReToolbox.Utils
 {
@@ -19,13 +20,38 @@ namespace ReToolbox.Utils
         // staggered so cards appear one after another. Identifies SettingsCards
         // and generic FrameworkElements with x:Name to animate, and skips items
         // that are collapsed.
+        private static bool AnimationsEnabled
+        {
+            get
+            {
+                try
+                {
+                    return new UISettings().AnimationsEnabled;
+                }
+                catch
+                {
+                    return true;
+                }
+            }
+        }
+
         public static void StaggerIn(Page page)
         {
-            FrameworkElement root = FindAnimatableRoot(page);
+            FrameworkElement? root = FindAnimatableRoot(page);
             if (root == null) return;
 
             var targets = CollectAnimatableChildren(root);
             if (targets.Count == 0) return;
+
+            if (!AnimationsEnabled)
+            {
+                foreach (var child in targets)
+                {
+                    child.Opacity = 1;
+                    child.RenderTransform = null;
+                }
+                return;
+            }
 
             int index = 0;
             foreach (var child in targets)
@@ -37,7 +63,7 @@ namespace ReToolbox.Utils
 
         // Walks the visual tree to find the first meaningful layout container
         // (ScrollViewer's content, a StackPanel, a Grid with multiple children).
-        private static FrameworkElement FindAnimatableRoot(Page page)
+        private static FrameworkElement? FindAnimatableRoot(Page page)
         {
             // The page's content is usually a Grid or ScrollViewer.
             if (page.Content is ScrollViewer sv && sv.Content is FrameworkElement svContent)
@@ -133,6 +159,12 @@ namespace ReToolbox.Utils
         public static void AnimateIn(FrameworkElement element, int delayMs = 0, int durationMs = 400)
         {
             if (element == null) return;
+            if (!AnimationsEnabled)
+            {
+                element.Opacity = 1;
+                element.RenderTransform = null;
+                return;
+            }
 
             // Set the initial transform so it starts translated + transparent.
             element.RenderTransformOrigin = new Point(0.5, 0.5);

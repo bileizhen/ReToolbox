@@ -192,6 +192,11 @@ namespace ReToolbox.Views
 
         private void ApplySections(IReadOnlyList<HardwareInfoSection> sections)
         {
+            if (sections.Count < 3)
+            {
+                throw new InvalidOperationException("硬件信息数据不完整，请重试。");
+            }
+
             var summary = sections[0].Items;
             var system = sections[1].Items;
             var details = sections[2].Items;
@@ -210,6 +215,31 @@ namespace ReToolbox.Views
         {
             LoadingRing.IsActive = isLoading;
             LoadingRing.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void CopyElement_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key is not (Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Space))
+            {
+                return;
+            }
+
+            if (sender is FrameworkElement element)
+            {
+                string? text = element.Name switch
+                {
+                    "Card1" => ModelText.Text,
+                    "Card2" => SystemText.Text,
+                    "Card3" => UptimeText.Text,
+                    _ => element.DataContext is HardwareInfoItem item ? item.Value : null
+                };
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    CopyToClipboard(text);
+                    e.Handled = true;
+                }
+            }
         }
 
         private void Card1_Tapped(object sender, TappedRoutedEventArgs e) => CopyToClipboard(ModelText.Text);
@@ -319,19 +349,16 @@ namespace ReToolbox.Views
             if (_isScreenshotting) return;
             _isScreenshotting = true;
 
+            var statusWasOpen = StatusBar.IsOpen;
+            var headerVisibility = HeaderButtons.Visibility;
+
             try
             {
-                var statusWasOpen = StatusBar.IsOpen;
                 StatusBar.IsOpen = false;
-
                 HeaderButtons.Visibility = Visibility.Collapsed;
 
                 var rtb = new RenderTargetBitmap();
                 await rtb.RenderAsync(LayoutRoot);
-
-                HeaderButtons.Visibility = Visibility.Visible;
-
-                if (statusWasOpen) StatusBar.IsOpen = true;
 
                 var pixelWidth = rtb.PixelWidth;
                 var pixelHeight = rtb.PixelHeight;
@@ -412,6 +439,11 @@ namespace ReToolbox.Views
             }
             finally
             {
+                HeaderButtons.Visibility = headerVisibility;
+                if (!StatusBar.IsOpen && statusWasOpen)
+                {
+                    StatusBar.IsOpen = true;
+                }
                 _isScreenshotting = false;
             }
         }

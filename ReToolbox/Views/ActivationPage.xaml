@@ -86,8 +86,9 @@
 
                 <controls:SettingsCard
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                    Description="打开 MAS 汉化版的中文菜单，可在其中激活 Windows 或切换版本（家庭版→专业版等）。"
-                    Header="一键激活 / 切换版本">
+                    Description="出于管理员权限与供应链安全，远程激活脚本执行已禁用。请改用下方官方渠道获取工具。"
+                    Header="一键激活（已禁用）"
+                    IsEnabled="False">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE977;" />
                     </controls:SettingsCard.HeaderIcon>
@@ -97,7 +98,7 @@
                             Click="Activate_Click"
                             Content="激活 Windows"
                             Style="{StaticResource AccentButtonStyle}"
-                            IsEnabled="{x:Bind ViewModel.IsActivating, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}" />
+                            IsEnabled="False" />
                         <Button Click="RefreshStatus_Click" Content="刷新状态" />
                     </StackPanel>
                 </controls:SettingsCard>

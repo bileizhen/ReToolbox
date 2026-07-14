@@ -134,7 +134,8 @@ namespace ReToolbox.Views
 
             // Open a modal progress dialog for the whole batch.
             InstallProgressDialog.Title = "正在安装软件";
-            InstallProgressDialog.CloseButtonText = null; // no dismiss while running
+            InstallProgressDialog.CloseButtonText = "取消";
+            InstallProgressDialog.CloseButtonCommand = ViewModel.CancelInstallCommand;
             InstallProgressDialog.XamlRoot = this.XamlRoot;
 
             ViewModel.InstallLogs.CollectionChanged += InstallLogs_CollectionChanged;
@@ -155,11 +156,11 @@ namespace ReToolbox.Views
             finally
             {
                 InstallProgressDialog.CloseButtonText = "关闭";
+                InstallProgressDialog.CloseButtonCommand = null;
+                ViewModel.InstallLogs.CollectionChanged -= InstallLogs_CollectionChanged;
             }
 
             await showOperation;
-
-            ViewModel.InstallLogs.CollectionChanged -= InstallLogs_CollectionChanged;
             RefreshCheckBoxes();
         }
 

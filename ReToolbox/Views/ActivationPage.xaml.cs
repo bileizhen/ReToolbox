@@ -1,4 +1,4 @@
-using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,19 +21,14 @@ namespace ReToolbox.Views
             Loaded += (s, e) => PageAnimations.StaggerIn(this);
         }
 
+        // Activation via remote MAS scripts is disabled for administrator-mode supply-chain
+        // safety. The action button stays disabled; we only surface a clear status message.
         private async void Activate_Click(object sender, RoutedEventArgs e)
         {
-            ActivateButton.IsEnabled = false;
             StatusInfoBar.IsOpen = true;
-            StatusInfoBar.Message = "正在打开 MAS 汉化版，请在弹出的中文窗口中操作...";
-            StatusInfoBar.Severity = InfoBarSeverity.Informational;
-
-            await ViewModel.ActivateCommand.ExecuteAsync(null);
-
-            // 用户关闭 MAS 窗口后回到这里，刷新状态以反映激活结果。
-            StatusInfoBar.Message = ViewModel.StatusMessage;
-            StatusInfoBar.Severity = ViewModel.IsActivated ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
-            ActivateButton.IsEnabled = true;
+            StatusInfoBar.Message = "出于管理员权限与供应链安全，远程激活脚本执行已禁用。请改用官方渠道获取工具。";
+            StatusInfoBar.Severity = InfoBarSeverity.Warning;
+            await Task.CompletedTask;
         }
 
         private void RefreshStatus_Click(object sender, RoutedEventArgs e)

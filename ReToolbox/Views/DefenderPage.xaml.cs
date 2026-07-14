@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -25,42 +24,13 @@ namespace ReToolbox.Views
 
         private async void PrimaryAction_Click(object sender, RoutedEventArgs e)
         {
-            // Defender removal is irreversible and forces a reboot, so confirm first.
-            ContentDialog dialog = new ContentDialog
-            {
-                XamlRoot = this.XamlRoot,
-                Title = "移除 Windows Defender？",
-                Content = "此操作将强制移除或禁用 Windows Defender（含杀毒引擎、SmartScreen、安全中心等），" +
-                          "操作不可逆，且完成后会自动重启电脑。建议先创建系统还原点。是否继续？",
-                PrimaryButtonText = "移除",
-                CloseButtonText = "取消",
-                DefaultButton = ContentDialogButton.Close
-            };
-
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            await RunRemoveAsync();
-        }
-
-        private async Task RunRemoveAsync()
-        {
-            PrimaryActionButton.IsEnabled = false;
-            RemoveProgress.Visibility = Visibility.Visible;
+            // Defender removal depends on a remote third-party tool and is disabled for
+            // administrator-mode supply-chain safety until a verified pinned artifact is
+            // available. Surface a clear warning instead of attempting removal.
             StatusInfoBar.IsOpen = true;
-            StatusInfoBar.Message = "正在移除 Windows Defender...";
-            StatusInfoBar.Severity = InfoBarSeverity.Informational;
-
-            await ViewModel.RemoveDefenderCommand.ExecuteAsync(null);
-
-            RemoveProgress.Visibility = Visibility.Collapsed;
-            StatusInfoBar.Message = ViewModel.StatusMessage;
-            StatusInfoBar.Severity = !ViewModel.IsDefenderActive
-                ? InfoBarSeverity.Success
-                : InfoBarSeverity.Error;
-            UpdatePrimaryActionButton();
+            StatusInfoBar.Message = "出于管理员权限与供应链安全，Defender Remover 下载与执行已禁用。请等待提供带固定摘要的受信版本。";
+            StatusInfoBar.Severity = InfoBarSeverity.Warning;
+            await Task.CompletedTask;
         }
 
         private async void OpenSecurity_Click(object sender, RoutedEventArgs e)
@@ -77,10 +47,11 @@ namespace ReToolbox.Views
 
         private void UpdatePrimaryActionButton()
         {
-            // Only removal is supported (no upstream enable path); keep the action fixed.
-            PrimaryActionButton.Content = "移除 Defender";
-            PrimaryActionButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-            PrimaryActionButton.IsEnabled = true;
+            // Removal is disabled pending a trusted pinned artifact; keep the button
+            // visible-but-disabled so the limitation is discoverable.
+            PrimaryActionButton.Content = "移除 Defender（已禁用）";
+            PrimaryActionButton.Style = (Style)Application.Current.Resources["DefaultButtonStyle"];
+            PrimaryActionButton.IsEnabled = false;
         }
     }
 }

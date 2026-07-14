@@ -76,7 +76,7 @@
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE946;" />
                 </controls:SettingsCard.HeaderIcon>
-                <TextBlock VerticalAlignment="Center" Text="v1.0.0" />
+                <TextBlock VerticalAlignment="Center" Text="{x:Bind ViewModel.Version, Mode=OneWay}" />
             </controls:SettingsCard>
 
             <TextBlock Style="{StaticResource CategoryTitle}" Text="技术信息" />

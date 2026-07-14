@@ -1,0 +1,46 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.301
+
+      - name: Restore
+        shell: pwsh
+        run: msbuild ReToolbox.slnx -t:Restore -p:Platform=x64 -v:minimal
+
+      - name: Test
+        shell: pwsh
+        run: dotnet test ReToolbox.Tests/ReToolbox.Tests.csproj -c Release
+
+      - name: Build
+        shell: pwsh
+        run: msbuild ReToolbox/ReToolbox.csproj -t:Build -p:Configuration=Release -p:Platform=x64
+
+      - name: Publish
+        shell: pwsh
+        run: msbuild ReToolbox/ReToolbox.csproj -t:Publish -p:Configuration=Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:PublishDir=${{ github.workspace }}\artifacts\publish\win-x64
+
+      - name: Dependency audit
+        shell: pwsh
+        run: dotnet list ReToolbox/ReToolbox.csproj package --vulnerable --include-transitive
+
+      - name: Report signature state
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "artifacts\publish\win-x64\ReToolbox.exe"
+          (Get-AuthenticodeSignature $exe) | Format-List Status, StatusMessage, SignerCertificate
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReToolbox-win-x64
+          path: artifacts/publish/win-x64

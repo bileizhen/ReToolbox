@@ -48,8 +48,8 @@ namespace ReToolbox
             }
             else if (args.SelectedItemContainer != null)
             {
-                var navItemTag = args.SelectedItemContainer.Tag.ToString();
-                Type pageType = Type.GetType(navItemTag);
+                string? navItemTag = args.SelectedItemContainer.Tag?.ToString();
+                Type? pageType = navItemTag is null ? null : Type.GetType(navItemTag);
                 if (pageType != null)
                 {
                     ContentFrame.Navigate(pageType, null, transition);
@@ -87,7 +87,7 @@ namespace ReToolbox
         }
         public void NavigateTo(string pageTag)
         {
-            Type pageType = Type.GetType(pageTag);
+            Type? pageType = Type.GetType(pageTag);
             if (pageType != null)
             {
                 ContentFrame.Navigate(pageType);
@@ -95,6 +95,20 @@ namespace ReToolbox
         }
 
         private void ThemeToggle_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            ToggleTheme();
+        }
+
+        private void ThemeToggle_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key is Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Space)
+            {
+                ToggleTheme();
+                e.Handled = true;
+            }
+        }
+
+        private void ToggleTheme()
         {
             // Flip between dark and light; Default falls back to whatever is current.
             ElementTheme next = ThemeService.Current == ElementTheme.Dark

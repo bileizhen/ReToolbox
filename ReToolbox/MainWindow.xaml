@@ -111,8 +111,11 @@
             <NavigationView.FooterMenuItems>
                 <NavigationViewItem
                     x:Name="ThemeToggle"
-                    SelectsOnInvoked="False"
+                    IsTabStop="True"
                     Tapped="ThemeToggle_Tapped"
+                    KeyDown="ThemeToggle_KeyDown"
+                    AutomationProperties.Name="切换应用主题"
+                    AutomationProperties.HelpText="按 Enter 或空格切换明暗主题"
                     Content="深色模式"
                     ToolTipService.ToolTip="切换明暗主题">
                     <NavigationViewItem.Icon>

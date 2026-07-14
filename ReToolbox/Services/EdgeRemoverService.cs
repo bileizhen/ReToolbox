@@ -8,8 +8,6 @@ namespace ReToolbox.Services
 {
     public class EdgeRemoverService
     {
-        private const string EdgeRemoverScriptUrl = "https://gh.llkk.cc/https://github.com/he3als/EdgeRemover/releases/download/v1.9.5/RemoveEdge.ps1";
-
         public bool IsEdgeInstalled()
         {
             return !string.IsNullOrWhiteSpace(GetInstalledEdgePath());
@@ -34,36 +32,12 @@ namespace ReToolbox.Services
             }
         }
 
-        public async Task<bool> UninstallEdgeAsync(IProgress<string>? progress = null)
+        public Task<bool> UninstallEdgeAsync(IProgress<string>? progress = null)
         {
-            progress?.Report("正在通过 EdgeRemover 脚本卸载 Microsoft Edge...");
-
-            try
-            {
-                if (!IsEdgeInstalled())
-                {
-                    progress?.Report("未找到 Microsoft Edge");
-                    return false;
-                }
-
-                string result = await ExecuteEdgeRemoverScriptAsync("-UninstallEdge -NonInteractive");
-                ReportScriptOutput(result, progress);
-
-                if (ContainsKnownFailure(result))
-                {
-                    progress?.Report("EdgeRemover 脚本卸载失败");
-                    return false;
-                }
-
-                bool success = !IsEdgeInstalled();
-                progress?.Report(success ? "Microsoft Edge 卸载完成" : "Microsoft Edge 仍然存在");
-                return success;
-            }
-            catch (Exception ex)
-            {
-                progress?.Report($"卸载失败: {ex.Message}");
-                return false;
-            }
+            progress?.Report(
+                "为保护管理员权限安全，第三方 EdgeRemover 脚本下载与执行已禁用。" +
+                "请等待提供带固定摘要的受信版本。");
+            return Task.FromResult(false);
         }
 
         public async Task<bool> InstallEdgeAsync(IProgress<string>? progress = null)
@@ -125,24 +99,6 @@ namespace ReToolbox.Services
                 progress?.Report($"清理失败: {ex.Message}");
                 return false;
             }
-        }
-
-        private static async Task<string> ExecuteEdgeRemoverScriptAsync(string scriptArguments)
-        {
-            return await Task.Run(() =>
-            {
-                string command =
-                    "$ProgressPreference='SilentlyContinue'; " +
-                    "[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; " +
-                    "$temp = Join-Path $env:TEMP ([guid]::NewGuid().ToString()); " +
-                    "New-Item -Path $temp -ItemType Directory -Force | Out-Null; " +
-                    "$file = Join-Path $temp 'RemoveEdge.ps1'; " +
-                    $"Invoke-WebRequest -Uri '{EdgeRemoverScriptUrl}' -OutFile $file -UseBasicParsing; " +
-                    $"$output = & $file {scriptArguments} 6>&1 | Out-String -Width 4096; " +
-                    "$output";
-
-                return CommandHelper.RunPowerShellCommand(command, true);
-            });
         }
 
         private static bool ContainsKnownFailure(string result)

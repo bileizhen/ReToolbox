@@ -1,8 +1,10 @@
 #define MyAppName "ReToolbox"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "ReToolbox"
 #define MyAppExeName "ReToolbox.exe"
-#define MyPublishDir "..\artifacts\publish\win-x64-new"
+#ifndef MyPublishDir
+#define MyPublishDir "..\artifacts\publish\win-x64"
+#endif
 #define MyOutputDir "..\artifacts\installer"
 
 [Setup]

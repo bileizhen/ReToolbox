@@ -56,19 +56,14 @@ namespace ReToolbox.Utils
             set => RegistryHelper.SetValue(RegistryPath, SelectedValue, NormalizeMirror(value), RegistryValueKind.String);
         }
 
-        // Normalizes user input into a mirror base URL: add an https:// scheme when
-        // missing, strip a trailing slash. Empty input stays empty (= auto).
+        public static bool TryNormalizeMirror(string? value, out string normalized)
+        {
+            return InputValidation.TryNormalizeHttpsOrigin(value, out normalized);
+        }
+
         private static string NormalizeMirror(string? value)
         {
-            if (value is null) return string.Empty;
-            string s = value.Trim().TrimEnd('/');
-            if (s.Length == 0) return string.Empty;
-            if (!s.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-                !s.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                s = "https://" + s;
-            }
-            return s;
+            return TryNormalizeMirror(value, out string normalized) ? normalized : string.Empty;
         }
 
         public static bool IsGitHubUrl(string url)

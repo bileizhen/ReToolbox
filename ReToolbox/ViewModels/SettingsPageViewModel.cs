@@ -12,7 +12,7 @@ namespace ReToolbox.ViewModels
         private string _appName = "ReToolbox";
 
         [ObservableProperty]
-        private string _version = "1.0.0";
+        private string _version = "v0.0.0";
 
         [ObservableProperty]
         private string _description = "Windows 重装后一键配置工具";
