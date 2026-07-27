@@ -28,6 +28,8 @@ namespace ReToolbox
                     services.AddSingleton<MemoryService>();
                     services.AddSingleton<VirtualMemoryService>();
                     services.AddSingleton<MemoryAutoCleanService>();
+                    services.AddSingleton<PowerPlanService>();
+                    services.AddSingleton<BatteryService>();
 
                     services.AddTransient<SoftwarePageViewModel>();
                     services.AddTransient<ActivationPageViewModel>();
@@ -36,6 +38,7 @@ namespace ReToolbox
                     services.AddTransient<DefenderPageViewModel>();
                     services.AddTransient<SystemInfoPageViewModel>();
                     services.AddTransient<MemoryPageViewModel>();
+                    services.AddTransient<PowerPlanPageViewModel>();
                     services.AddTransient<SettingsPageViewModel>();
                 })
                 .Build();

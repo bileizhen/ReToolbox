@@ -81,6 +81,11 @@
                         <FontIcon Glyph="&#xE964;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="PowerPlan" Content="电源管理" Tag="ReToolbox.Views.PowerPlanPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE83F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="Software" Content="软件安装" Tag="ReToolbox.Views.SoftwarePage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE896;" />
@@ -104,7 +109,7 @@
                 </NavigationViewItem>
                 <NavigationViewItem x:Name="Defender" Content="管理 Defender" Tag="ReToolbox.Views.DefenderPage">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE718;" />
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE83D;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

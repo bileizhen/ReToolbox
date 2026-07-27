@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -40,9 +41,7 @@ namespace ReToolbox.Services
             }
             else if (!string.IsNullOrWhiteSpace(software.DownloadUrl))
             {
-                progress?.Report(LogEntry.Normal(
-                    $"{software.Name} 的直接下载安装已禁用：缺少固定摘要或可信发布者验证。"));
-                success = false;
+                success = await InstallFromUrlAsync(software, progress, downloadProgress);
             }
             else
             {
@@ -94,6 +93,11 @@ namespace ReToolbox.Services
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromMinutes(45));
 
+            // When winget starts fetching a GitHub installer we abort it and download
+            // through a mirror ourselves - winget's own downloader goes direct and is
+            // unusably slow for github.com. Set when the URL line is observed.
+            string? takeoverUrl = null;
+
             void OnLine(string line)
             {
                 lock (lineLock)
@@ -114,6 +118,22 @@ namespace ReToolbox.Services
                         return;
                     }
 
+                    // Take over a GitHub download: winget only prints the URL once, at
+                    // the very start of fetching, so the abort happens before the slow
+                    // bulk transfers. Only when mirror acceleration is enabled.
+                    Match urlMatch = WingetDownloadUrl.Match(line);
+                    if (urlMatch.Success &&
+                        GitHubMirrorHelper.IsEnabled &&
+                        GitHubMirrorHelper.IsGitHubUrl(urlMatch.Groups[1].Value) &&
+                        takeoverUrl is null)
+                    {
+                        takeoverUrl = urlMatch.Groups[1].Value;
+                        progress?.Report(LogEntry.Normal(
+                            $"检测到 GitHub 安装包，中止 winget 改用镜像加速下载..."));
+                        timeoutCts.Cancel();
+                        return;
+                    }
+
                     string trimmed = line.Trim();
                     if (IsNoiseLine(trimmed)) return;
                     output.AppendLine(trimmed);
@@ -121,7 +141,10 @@ namespace ReToolbox.Services
                 }
             }
 
-            int exitCode;
+            // Default to a non-zero sentinel so the GitHub-takeover catch branch
+            // (which leaves exitCode unset but returns before it's used) and any
+            // unexpected throw still read as failure rather than "unassigned".
+            int exitCode = -1;
             try
             {
                 exitCode = await PtyProcess.RunAsync(
@@ -129,6 +152,10 @@ namespace ReToolbox.Services
                     encoding,
                     OnLine,
                     timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (takeoverUrl is not null)
+            {
+                // Expected: we cancelled winget to take over the GitHub download below.
             }
             catch (OperationCanceledException)
             {
@@ -146,6 +173,20 @@ namespace ReToolbox.Services
                     encoding,
                     OnLine,
                     timeoutCts.Token).ConfigureAwait(false);
+            }
+
+            // We caught winget just as it began a GitHub download — fetch the installer
+            // through a mirror and run it directly. This skips winget's silent install,
+            // but completes a 286 MB download in minutes instead of 25+ minutes.
+            if (takeoverUrl is not null)
+            {
+                downloadProgress?.Report(0);
+                using HttpClient client = new HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("ReToolbox");
+                string localPath = Path.Combine(Path.GetTempPath(),
+                    Path.GetFileName(new Uri(takeoverUrl).LocalPath));
+                return await DownloadAndRunAsync(client, takeoverUrl, software.Name, localPath,
+                    progress, downloadProgress).ConfigureAwait(false);
             }
 
             downloadProgress?.Report(exitCode == 0 ? 100 : 0);
@@ -345,19 +386,128 @@ namespace ReToolbox.Services
             return false;
         }
 
-        public async Task InstallSelectedSoftwareAsync(List<SoftwareItem> selectedItems, IProgress<(string, int)>? progress = null)
-        {
-            int total = selectedItems.Count;
-            int completed = 0;
+        private static readonly Regex WingetDownloadUrl =
+            new(@"(?:正在下载|Downloading)\s+(https?://\S+)", RegexOptions.Compiled);
 
-            foreach (var item in selectedItems)
+        // Downloads and launches an installer outside of winget.
+        // A DownloadUrl starting with "gh:" resolves the latest GitHub Release asset
+        // (e.g. "gh:hooke007/mpv_PlayKit" -> the first .exe asset of the latest release).
+        private async Task<bool> InstallFromUrlAsync(SoftwareItem software, IProgress<LogEntry>? progress = null, IProgress<int>? downloadProgress = null)
+        {
+            try
             {
-                progress?.Report(($"正在安装 {item.Name}... ({completed + 1}/{total})", completed * 100 / total));
-                await InstallSoftwareAsync(item);
-                completed++;
+                string downloadUrl = software.DownloadUrl;
+                using HttpClient client = new HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("ReToolbox");
+
+                if (downloadUrl.StartsWith("gh:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string repo = downloadUrl["gh:".Length..].Trim();
+                    string api = $"https://api.github.com/repos/{repo}/releases/latest";
+                    progress?.Report(LogEntry.Normal($"正在解析 {software.Name} 最新版本..."));
+                    string json;
+                    using (HttpResponseMessage apiResponse = await GitHubMirrorHelper.GetAsync(client, api, mirror =>
+                    {
+                        if (mirror is not null)
+                        {
+                            progress?.Report(LogEntry.Normal($"使用镜像 {new Uri(mirror).Host}"));
+                        }
+                    }).ConfigureAwait(false))
+                    {
+                        apiResponse.EnsureSuccessStatusCode();
+                        json = await apiResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    }
+                    Match match = Regex.Match(json, @"""browser_download_url""\s*:\s*""([^""]+\.exe)""");
+                    if (!match.Success)
+                    {
+                        progress?.Report(LogEntry.Normal($"{software.Name} 未找到可下载的安装包"));
+                        return false;
+                    }
+
+                    downloadUrl = match.Groups[1].Value;
+                }
+
+                string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
+                string localPath = Path.Combine(Path.GetTempPath(), fileName);
+
+                return await DownloadAndRunAsync(client, downloadUrl, software.Name, localPath, progress, downloadProgress)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                progress?.Report(LogEntry.Normal($"{software.Name} 下载安装失败：{ex.Message}"));
+                return false;
+            }
+        }
+
+        // Shared by InstallFromUrlAsync and the winget GitHub-takeover path: mirror
+        // the url to a temp file with a live progress bar, then run the installer.
+        private async Task<bool> DownloadAndRunAsync(
+            HttpClient client, string url, string displayName, string localPath,
+            IProgress<LogEntry>? progress, IProgress<int>? downloadProgress)
+        {
+            progress?.Report(LogEntry.Normal($"正在下载 {displayName}..."));
+            using (HttpResponseMessage response = await GitHubMirrorHelper.GetAsync(client, url, mirror =>
+            {
+                if (mirror is not null)
+                {
+                    progress?.Report(LogEntry.Normal($"使用镜像 {new Uri(mirror).Host}"));
+                }
+            }).ConfigureAwait(false))
+            {
+                response.EnsureSuccessStatusCode();
+                long? total = response.Content.Headers.ContentLength;
+                using Stream remote = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                using Stream local = File.Create(localPath);
+
+                byte[] buffer = new byte[81920];
+                long received = 0;
+                int read;
+                int lastPercent = -1;
+                while ((read = await remote.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
+                {
+                    await local.WriteAsync(buffer, 0, read).ConfigureAwait(false);
+                    received += read;
+
+                    if (total is long size && size > 0)
+                    {
+                        int percent = (int)(received * 100 / size);
+                        if (percent != lastPercent)
+                        {
+                            lastPercent = percent;
+                            downloadProgress?.Report(percent);
+                            progress?.Report(LogEntry.Progress(
+                                $"下载中 {percent}%（{FormatBytes(received)} / {FormatBytes(size)}）"));
+                        }
+                    }
+                }
+                downloadProgress?.Report(100);
             }
 
-            progress?.Report(("所有软件安装完成", 100));
+            progress?.Report(LogEntry.Normal($"下载完成，启动 {displayName} 安装程序，请按提示完成..."));
+            using (Process process = new Process())
+            {
+                process.StartInfo.FileName = localPath;
+                process.StartInfo.UseShellExecute = true;
+                process.Start();
+                await Task.Run(() => process.WaitForExit()).ConfigureAwait(false);
+            }
+
+            return true;
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            string[] units = { "B", "KB", "MB", "GB" };
+            double size = bytes;
+            int unit = 0;
+            while (size >= 1024 && unit < units.Length - 1)
+            {
+                size /= 1024;
+                unit++;
+            }
+
+            return $"{size:0.#} {units[unit]}";
         }
 
         public static bool IsValidWingetId(string wingetId)

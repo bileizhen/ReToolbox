@@ -45,11 +45,18 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <Image
+                    <!-- Use the Fluent shield glyph instead of scaling the small
+                         DefenderIcon.ico bitmap, which becomes visibly pixelated
+                         at 78 px and under high-DPI display scaling. -->
+                    <FontIcon
                         Width="78"
                         Height="78"
                         Margin="0,0,22,0"
-                        Source="ms-appx:///Assets/DefenderIcon.ico" />
+                        VerticalAlignment="Center"
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="54"
+                        Foreground="#00A4EF"
+                        Glyph="&#xE83D;" />
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="10">
                         <TextBlock
@@ -101,7 +108,7 @@
                     Description="打开 Windows 安全中心查看当前防护状态"
                     Header="打开 Windows 安全中心">
                     <controls:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xE718;" />
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE83D;" />
                     </controls:SettingsCard.HeaderIcon>
                     <Button Click="OpenSecurity_Click" Content="打开" />
                 </controls:SettingsCard>

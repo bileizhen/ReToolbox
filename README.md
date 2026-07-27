@@ -8,7 +8,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4)](#)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#)
-[![Version](https://img.shields.io/badge/version-1.3.0-2EA44F)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.4.0-2EA44F)](../../releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE.txt)
 
 </div>
@@ -16,7 +16,7 @@
 ---
 
 <p>
-  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.3.0-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
+  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.4.0-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
   <a href="../../releases"><img src="https://img.shields.io/badge/download-Setup.exe-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="Download"/></a>
   <a href="./LICENSE.txt"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="License"/></a>
   <a href="#-从源码构建-build-from-source"><img src="https://img.shields.io/badge/build-passing-2EA44F?style=for-the-badge&logo=appveyor&logoColor=white" alt="Build"/></a>
@@ -112,7 +112,7 @@
 <td width="50%">
 
 🧩 **模块化功能**
-主页、系统信息、内存清理、软件安装、Windows 更新、激活、Edge、Defender 等常用工具一站式集成。
+主页、系统信息、内存管理、电源管理、软件安装、Windows 更新、激活、Edge、Defender 等常用工具一站式集成。
 
 🎯 **轻量纯净**
 无广告、无捆绑、专注效率，让你专注于真正重要的事情。
@@ -130,6 +130,7 @@
 |  🏠  | **主页**          | 概览仪表盘与常用功能快捷入口                                                                                          |
 |  🖥️  | **系统信息**      | 硬件检测（型号 / 主板 / BIOS / 处理器 / 内存 / 显卡 / NPU / 显示器 / 硬盘 / 声卡 / 网卡），支持截图导出与详细信息查看 |
 |  🧠  | **内存管理**      | 内存仪表盘、轻量 / 深度清理、虚拟内存自适应、定时自动清理、进程内存排行                                               |
+|  🔋  | **电源管理**      | 电源计划切换与删除、开机自动切换、卓越性能计划、电池健康度                                                           |
 |  📦  | **软件安装**      | 常用软件一键安装                                                                                                      |
 |  🔄  | **管理更新**      | 管理 Windows 更新行为                                                                                                 |
 |  🔑  | **系统激活**      | 系统激活相关工具                                                                                                      |
@@ -257,7 +258,7 @@ Self-contained publishing — no separate .NET runtime installation required.
 <td width="50%">
 
 🧩 **Modular Feature Set**
-Home dashboard, system info, memory management, software install, Windows Update, activation, Edge and Defender tools — all in one place.
+Home dashboard, system info, memory and power management, software install, Windows Update, activation, Edge and Defender tools — all in one place.
 
 🎯 **Lightweight & Clean**
 No ads, no bundles — focused on getting things done.
@@ -275,6 +276,7 @@ No ads, no bundles — focused on getting things done.
 |  🏠  | **Home**           | Overview dashboard with quick actions                                                                                                           |
 |  🖥️  | **System Info**    | Hardware detection (model / board / BIOS / CPU / memory / GPU / NPU / display / disk / sound / network), with screenshot export and detail view |
 |  🧠  | **Memory**         | Memory dashboard, light / deep cleanup, adaptive virtual memory, scheduled auto-cleaning, process memory ranking                                |
+|  🔋  | **Power**          | Switch and delete power plans, switch automatically on sign-in, add Ultimate Performance, inspect battery health                               |
 |  📦  | **Software**       | One-click install for common applications                                                                                                       |
 |  🔄  | **Windows Update** | Manage Windows update behavior                                                                                                                  |
 |  🔑  | **Activation**     | System activation utilities                                                                                                                     |
