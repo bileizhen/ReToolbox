@@ -1,4 +1,4 @@
-using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,44 +21,14 @@ namespace ReToolbox.Views
             Loaded += (s, e) => PageAnimations.StaggerIn(this);
         }
 
+        // Remote activation scripts are disabled at both the UI and service layers.
         private async void Activate_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "打开 Windows 激活工具？",
-                Content = "将打开 MAS 汉化版窗口。该工具会对 Windows 或 Office 的许可与激活配置进行更改，请确认你有权在此设备上执行这些操作。是否继续？",
-                PrimaryButtonText = "继续",
-                CloseButtonText = "取消",
-                DefaultButton = ContentDialogButton.Close
-            };
-
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            ActivateButton.IsEnabled = false;
             StatusInfoBar.IsOpen = true;
-            StatusInfoBar.Message = "正在打开 MAS 汉化版，请在弹出的中文窗口中操作...";
-            StatusInfoBar.Severity = InfoBarSeverity.Informational;
-
-            try
-            {
-                await ViewModel.ActivateCommand.ExecuteAsync(null);
-
-                StatusInfoBar.Message = ViewModel.StatusMessage;
-                StatusInfoBar.Severity = ViewModel.IsActivated ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
-            }
-            catch (Exception ex)
-            {
-                StatusInfoBar.Message = $"无法打开激活工具：{ex.Message}";
-                StatusInfoBar.Severity = InfoBarSeverity.Error;
-            }
-            finally
-            {
-                ActivateButton.IsEnabled = !ViewModel.IsActivating;
-            }
+            StatusInfoBar.Message =
+                "出于管理员权限与供应链安全，远程激活脚本执行已禁用。请改用官方渠道获取并核验工具。";
+            StatusInfoBar.Severity = InfoBarSeverity.Warning;
+            await Task.CompletedTask;
         }
 
         private void RefreshStatus_Click(object sender, RoutedEventArgs e)

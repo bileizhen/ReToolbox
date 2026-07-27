@@ -43,4 +43,43 @@ public class SecurityPolicyTests
     {
         Assert.False(InputValidation.IsValidWingetId(id));
     }
+
+    [Fact]
+    public void AdministratorRemoteExecutionPoliciesFailClosed()
+    {
+        Assert.False(SecurityPolicy.AllowRemoteActivationScripts);
+        Assert.False(SecurityPolicy.AllowUnverifiedDirectInstallers);
+        Assert.False(SecurityPolicy.AllowUnverifiedAdministratorTools);
+    }
+
+    [Fact]
+    public void ActivationServiceDoesNotPipeRemoteContentIntoPowerShell()
+    {
+        string source = File.ReadAllText(RepoFile("ReToolbox", "Services", "ActivationService.cs"));
+
+        Assert.DoesNotContain("| iex", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Invoke-Expression", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DownloadString(", source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SoftwareInstallerDoesNotShipDirectDownloadExecution()
+    {
+        string source = File.ReadAllText(RepoFile("ReToolbox", "Services", "SoftwareInstallService.cs"));
+
+        Assert.DoesNotContain("InstallFromUrlAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("DownloadAndRunAsync", source, StringComparison.Ordinal);
+    }
+
+    private static string RepoFile(params string[] segments)
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "ReToolbox.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return Path.Combine(new[] { directory!.FullName }.Concat(segments).ToArray());
+    }
 }

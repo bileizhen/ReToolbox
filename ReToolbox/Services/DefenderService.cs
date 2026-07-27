@@ -36,6 +36,13 @@ namespace ReToolbox.Services
         // tool's own interactive prompt.
         public async Task<bool> RemoveDefenderAsync(IProgress<string>? progress = null)
         {
+            if (!SecurityPolicy.AllowUnverifiedAdministratorTools)
+            {
+                progress?.Report(
+                    "Defender Remover 已禁用：缺少固定摘要或可信发布者验证。");
+                return false;
+            }
+
             progress?.Report("正在下载 Defender Remover...");
 
             try

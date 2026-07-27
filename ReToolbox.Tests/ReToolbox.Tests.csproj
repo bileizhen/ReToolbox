@@ -17,5 +17,6 @@
 
   <ItemGroup>
     <Compile Include="..\ReToolbox\Utils\InputValidation.cs" Link="InputValidation.cs" />
+    <Compile Include="..\ReToolbox\Utils\SecurityPolicy.cs" Link="SecurityPolicy.cs" />
   </ItemGroup>
 </Project>

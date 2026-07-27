@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Management;
 using System.Threading.Tasks;
@@ -9,9 +8,9 @@ namespace ReToolbox.Services
 {
     public class ActivationService
     {
-        // MAS 汉化版 (cmontage/mas-cn)：接口与官方版完全一致，弹出的是中文菜单。
-        // 汉化版仓库: https://github.com/cmontage/mas-cn (GPL-3.0)
-        private const string MAS_CN_COMMAND = "irm https://gitee.com/cmontage/mas-cn/raw/main/GETMASCN.ps1 | iex";
+        // Remote activation scripts remain disabled. Executing mutable third-party
+        // PowerShell as administrator is a supply-chain boundary that requires a
+        // pinned, independently verified artifact before it can be enabled.
 
         // LicenseStatus values from SoftwareLicensingProduct:
         //   0 = Unlicensed, 1 = Licensed (permanently activated),
@@ -113,39 +112,17 @@ namespace ReToolbox.Services
             }
         }
 
-        // Launches the MAS 汉化版 in a visible PowerShell window. MAS is an
-        // interactive TUI menu, so it must own a real console (CreateNoWindow /
-        // redirected stdout would hide the menu and make it unselectable). The
-        // app already runs elevated (requireAdministrator in app.manifest), so the
-        // child inherits admin rights; Verb=runas is a harmless belt-and-braces.
-        public async Task<bool> ActivateAsync(IProgress<string>? progress = null)
+        public Task<bool> ActivateAsync(IProgress<string>? progress = null)
         {
-            progress?.Report("正在打开 MAS 汉化版(中文菜单)...");
-
-            try
+            if (!SecurityPolicy.AllowRemoteActivationScripts)
             {
-                await Task.Run(() =>
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "powershell.exe",
-                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{MAS_CN_COMMAND}\"",
-                        UseShellExecute = true,
-                        Verb = "runas",
-                        WindowStyle = ProcessWindowStyle.Normal
-                    };
-                    using var proc = Process.Start(psi);
-                    proc?.WaitForExit();
-                });
+                progress?.Report(
+                    "为保护管理员权限安全，远程 MAS 脚本执行已禁用。" +
+                    "请从 MAS 官方渠道手动获取并核验工具，或等待 ReToolbox 提供带固定摘要的受信版本。");
+                return Task.FromResult(false);
+            }
 
-                progress?.Report("MAS 窗口已关闭，请点击「刷新状态」查看激活结果");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                progress?.Report($"启动失败: {ex.Message}");
-                return false;
-            }
+            return Task.FromResult(false);
         }
 
         private static string GetEditionDisplayName(string? editionId)

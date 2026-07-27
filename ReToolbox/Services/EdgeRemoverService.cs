@@ -36,6 +36,13 @@ namespace ReToolbox.Services
 
         public async Task<bool> UninstallEdgeAsync(IProgress<string>? progress = null)
         {
+            if (!SecurityPolicy.AllowUnverifiedAdministratorTools)
+            {
+                progress?.Report(
+                    "EdgeRemover 已禁用：缺少固定摘要或可信发布者验证。");
+                return false;
+            }
+
             progress?.Report("正在通过 EdgeRemover 脚本卸载 Microsoft Edge...");
 
             try
