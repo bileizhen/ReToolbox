@@ -55,7 +55,7 @@ namespace ReToolbox.ViewModels
                 HeroStatusGlyph = "\uE73E";
                 HeroStatusForeground = "#2EA043";
                 HeroStatusDetail = "正在保护";
-                HeroVersionText = string.Empty;
+                HeroVersionText = DefenderRemovalWorkflow.CurrentRelease.Tag;
             }
             else
             {
@@ -65,33 +65,38 @@ namespace ReToolbox.ViewModels
                 HeroStatusGlyph = "\uE711";
                 HeroStatusForeground = "#FF5F57";
                 HeroStatusDetail = "已禁用或已移除";
-                HeroVersionText = string.Empty;
+                HeroVersionText = DefenderRemovalWorkflow.CurrentRelease.Tag;
             }
         }
 
         [RelayCommand]
-        private async Task RemoveDefenderAsync()
+        private async Task RemoveDefenderAsync(DefenderRemovalMode mode)
         {
             IsRemoving = true;
-            StatusMessage = "正在移除 Windows Defender...";
+            DefenderRemovalProfile profile = DefenderRemovalWorkflow.GetProfile(mode);
+            StatusMessage = $"正在执行：{profile.DisplayName}...";
             var progress = new Progress<string>(msg =>
             {
                 StatusMessage = msg;
             });
 
-            bool success = await _defenderService.RemoveDefenderAsync(progress);
-
-            if (success)
+            try
             {
-                StatusMessage = "Windows Defender 移除完成，建议重启电脑";
-            }
-            else
-            {
-                StatusMessage = "Windows Defender 移除未完成，请重试或检查输出";
-            }
+                bool success = await _defenderService.RemoveDefenderAsync(mode, progress);
 
-            IsRemoving = false;
-            RefreshStatus();
+                if (success)
+                {
+                    StatusMessage = $"{profile.DisplayName}流程已完成，请按上游提示重启电脑";
+                }
+                else
+                {
+                    StatusMessage = $"{profile.DisplayName}未完成，请检查提示后重试";
+                }
+            }
+            finally
+            {
+                IsRemoving = false;
+            }
         }
     }
 }

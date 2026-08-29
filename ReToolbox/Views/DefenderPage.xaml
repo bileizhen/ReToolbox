@@ -92,7 +92,7 @@
                 <controls:SettingsCard
                     x:Name="RemoveCard"
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                    Description="移除或禁用 Windows Defender（含杀毒、SmartScreen、安全中心等），操作不可逆且会强制重启"
+                    Description="选择完整移除，或仅移除杀毒引擎并保留 Windows 安全中心；操作可能不可逆且会重启"
                     Header="移除 Windows Defender">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE74D;" />
@@ -100,7 +100,7 @@
                     <Button
                         x:Name="PrimaryActionButton"
                         Click="PrimaryAction_Click"
-                        Content="移除 Defender" />
+                        Content="选择移除模式" />
                 </controls:SettingsCard>
 
                 <controls:SettingsCard

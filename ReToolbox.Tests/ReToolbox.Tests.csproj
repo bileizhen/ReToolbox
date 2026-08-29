@@ -16,6 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\ReToolbox\Services\DefenderRemovalWorkflow.cs" Link="DefenderRemovalWorkflow.cs" />
+    <Compile Include="..\ReToolbox\Utils\ArtifactIntegrity.cs" Link="ArtifactIntegrity.cs" />
     <Compile Include="..\ReToolbox\Utils\InputValidation.cs" Link="InputValidation.cs" />
     <Compile Include="..\ReToolbox\Utils\SecurityPolicy.cs" Link="SecurityPolicy.cs" />
   </ItemGroup>

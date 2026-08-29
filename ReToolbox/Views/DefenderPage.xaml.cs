@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -24,13 +25,100 @@ namespace ReToolbox.Views
 
         private async void PrimaryAction_Click(object sender, RoutedEventArgs e)
         {
-            // Defender removal depends on a remote third-party tool and is disabled for
-            // administrator-mode supply-chain safety until a verified pinned artifact is
-            // available. Surface a clear warning instead of attempting removal.
+            DefenderRemovalProfile fullProfile = DefenderRemovalWorkflow.GetProfile(DefenderRemovalMode.Full);
+            DefenderRemovalProfile antivirusOnlyProfile = DefenderRemovalWorkflow.GetProfile(DefenderRemovalMode.AntivirusOnly);
+
+            RadioButton fullOption = CreateModeOption(fullProfile, isChecked: true);
+            RadioButton antivirusOnlyOption = CreateModeOption(antivirusOnlyProfile, isChecked: false);
+            StackPanel options = new StackPanel { Spacing = 12 };
+            options.Children.Add(fullOption);
+            options.Children.Add(antivirusOnlyOption);
+
+            ContentDialog confirmation = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "选择 Defender 移除范围",
+                Content = options,
+                PrimaryButtonText = "确认并继续",
+                CloseButtonText = "取消",
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            DefenderRemovalMode mode = antivirusOnlyOption.IsChecked == true
+                ? DefenderRemovalMode.AntivirusOnly
+                : DefenderRemovalMode.Full;
+            DefenderRemovalProfile selectedProfile = DefenderRemovalWorkflow.GetProfile(mode);
+
+            ContentDialog finalConfirmation = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = $"确认{selectedProfile.DisplayName}？",
+                Content = $"{selectedProfile.Description}\n\n此操作可能不可逆并会降低系统防护能力，且上游工具会安排系统重启。建议先创建系统还原点。",
+                PrimaryButtonText = "继续执行",
+                CloseButtonText = "返回",
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            if (await finalConfirmation.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            PrimaryActionButton.IsEnabled = false;
+            RemoveProgress.Visibility = Visibility.Visible;
             StatusInfoBar.IsOpen = true;
-            StatusInfoBar.Message = "出于管理员权限与供应链安全，Defender Remover 下载与执行已禁用。请等待提供带固定摘要的受信版本。";
-            StatusInfoBar.Severity = InfoBarSeverity.Warning;
-            await Task.CompletedTask;
+            StatusInfoBar.Message = $"正在准备：{selectedProfile.DisplayName}...";
+            StatusInfoBar.Severity = InfoBarSeverity.Informational;
+
+            try
+            {
+                await ViewModel.RemoveDefenderCommand.ExecuteAsync(mode);
+                StatusInfoBar.Message = ViewModel.StatusMessage;
+                StatusInfoBar.Severity = ViewModel.StatusMessage.Contains("流程已完成")
+                    ? InfoBarSeverity.Success
+                    : InfoBarSeverity.Warning;
+            }
+            catch (Exception ex)
+            {
+                StatusInfoBar.Message = $"移除失败：{ex.Message}";
+                StatusInfoBar.Severity = InfoBarSeverity.Error;
+            }
+            finally
+            {
+                RemoveProgress.Visibility = Visibility.Collapsed;
+                UpdatePrimaryActionButton();
+            }
+        }
+
+        private static RadioButton CreateModeOption(
+            DefenderRemovalProfile profile,
+            bool isChecked)
+        {
+            StackPanel content = new StackPanel { Spacing = 3 };
+            content.Children.Add(new TextBlock
+            {
+                Text = profile.DisplayName,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+            content.Children.Add(new TextBlock
+            {
+                Text = profile.Description,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 460,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+            });
+
+            return new RadioButton
+            {
+                GroupName = "DefenderRemovalMode",
+                Content = content,
+                IsChecked = isChecked
+            };
         }
 
         private async void OpenSecurity_Click(object sender, RoutedEventArgs e)
@@ -47,11 +135,9 @@ namespace ReToolbox.Views
 
         private void UpdatePrimaryActionButton()
         {
-            // Removal is disabled pending a trusted pinned artifact; keep the button
-            // visible-but-disabled so the limitation is discoverable.
-            PrimaryActionButton.Content = "移除 Defender（已禁用）";
-            PrimaryActionButton.Style = (Style)Application.Current.Resources["DefaultButtonStyle"];
-            PrimaryActionButton.IsEnabled = false;
+            PrimaryActionButton.Content = "选择移除模式";
+            PrimaryActionButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+            PrimaryActionButton.IsEnabled = !ViewModel.IsRemoving;
         }
     }
 }
