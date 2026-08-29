@@ -1,8 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using ReToolbox.Utils;
 
@@ -30,24 +30,21 @@ namespace ReToolbox.Services
 
         // Downloads the pinned reviewed release, verifies it, and selects the
         // requested upstream mode without requiring menu input from the user.
-        public async Task<bool> RemoveDefenderAsync(
+        public async Task<DefenderRemovalResult> RemoveDefenderAsync(
             DefenderRemovalMode mode,
-            IProgress<string>? progress = null,
-            CancellationToken cancellationToken = default)
+            IProgress<string>? progress = null)
         {
             DefenderRemovalProfile profile = DefenderRemovalWorkflow.GetProfile(mode);
             DefenderRemoverRelease release = DefenderRemovalWorkflow.CurrentRelease;
             progress?.Report("正在下载 Defender Remover...");
 
-            string tempDirectory = Path.Combine(
-                Path.GetTempPath(),
-                "ReToolbox",
-                Guid.NewGuid().ToString("N"));
-            string localPath = Path.Combine(tempDirectory, release.FileName);
+            string? stagingDirectory = null;
 
             try
             {
-                Directory.CreateDirectory(tempDirectory);
+                stagingDirectory = SecureStagingDirectory.Create();
+                string archivePath = Path.Combine(stagingDirectory, release.FileName);
+                string payloadDirectory = Path.Combine(stagingDirectory, "payload");
 
                 using HttpClient client = new HttpClient
                 {
@@ -55,87 +52,103 @@ namespace ReToolbox.Services
                 };
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("ReToolbox/1.4");
 
-                await DownloadWithRetryAsync(client, release, localPath, progress, cancellationToken);
+                await DownloadWithRetryAsync(client, release, archivePath, progress);
 
-                progress?.Report("正在校验 Defender Remover 完整性...");
-                await using (FileStream downloaded = File.OpenRead(localPath))
+                progress?.Report("正在校验并解压 Defender Remover 源码包...");
+                await using (FileStream downloaded = new FileStream(
+                    archivePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read))
                 {
                     if (downloaded.Length != release.Size ||
                         !await ArtifactIntegrity.HasExpectedSha256Async(
                             downloaded,
-                            release.Sha256,
-                            cancellationToken))
+                            release.Sha256))
                     {
-                        progress?.Report("安全校验失败：下载文件的大小或 SHA-256 与固定版本不匹配，已阻止执行");
-                        return false;
+                        return Failure("安全校验失败：下载文件的大小或 SHA-256 与固定版本不匹配，已阻止执行");
                     }
+
+                    downloaded.Position = 0;
+                    Directory.CreateDirectory(payloadDirectory);
+                    using ZipArchive archive = new ZipArchive(
+                        downloaded,
+                        ZipArchiveMode.Read,
+                        leaveOpen: true);
+                    archive.ExtractToDirectory(payloadDirectory);
+                }
+
+                string scriptDirectory = Path.Combine(
+                    payloadDirectory,
+                    release.ExtractedRootDirectory,
+                    "script");
+                string scriptPath = Path.Combine(scriptDirectory, "Script_Run.ps1");
+                string powerRunPath = Path.Combine(scriptDirectory, "PowerRun.exe");
+                if (!File.Exists(scriptPath) || !File.Exists(powerRunPath))
+                {
+                    return Failure("安全校验失败：固定源码包结构不完整，已阻止执行");
                 }
 
                 progress?.Report($"正在启动 Defender Remover：{profile.DisplayName}...");
 
                 using (Process process = new Process())
                 {
-                    process.StartInfo.FileName = localPath;
-                    process.StartInfo.WorkingDirectory = tempDirectory;
+                    process.StartInfo.FileName = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.System),
+                        "WindowsPowerShell",
+                        "v1.0",
+                        "powershell.exe");
+                    process.StartInfo.WorkingDirectory = scriptDirectory;
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.CreateNoWindow = false;
-                    process.StartInfo.RedirectStandardInput = true;
+                    process.StartInfo.ArgumentList.Add("-NoProfile");
+                    process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
+                    process.StartInfo.ArgumentList.Add("Bypass");
+                    process.StartInfo.ArgumentList.Add("-File");
+                    process.StartInfo.ArgumentList.Add(scriptPath);
                     process.StartInfo.ArgumentList.Add(profile.UpstreamSelection);
                     if (!process.Start())
                     {
-                        progress?.Report("无法启动 Defender Remover");
-                        return false;
+                        return Failure("无法启动 Defender Remover");
                     }
 
-                    // Current upstream source accepts y/a directly, while the packaged
-                    // launcher may still show its interactive menu. Supplying both the
-                    // argument and one stdin line keeps the selected mode deterministic.
-                    try
-                    {
-                        await process.StandardInput.WriteLineAsync(profile.UpstreamSelection);
-                        await process.StandardInput.FlushAsync();
-                        process.StandardInput.Close();
-                    }
-                    catch (IOException) when (process.HasExited)
-                    {
-                        // A future upstream build may consume the command-line argument
-                        // and exit before reading stdin.
-                    }
-
-                    await process.WaitForExitAsync(cancellationToken);
+                    await process.WaitForExitAsync();
                     if (process.ExitCode != 0)
                     {
-                        progress?.Report($"Defender Remover 已退出，代码：{process.ExitCode}");
-                        return false;
+                        return Failure($"Defender Remover 已退出，代码：{process.ExitCode}");
                     }
                 }
 
-                progress?.Report($"{profile.DisplayName}流程已完成；请按上游提示重启，并在登录后查看验证结果");
-                return true;
-            }
-            catch (OperationCanceledException)
-            {
-                progress?.Report("Defender 移除操作已取消");
-                return false;
+                string completionMessage = profile.KeepsWindowsSecurity
+                    ? $"{profile.DisplayName}流程已完成；Windows 安全中心仍存在是预期结果，上游通用验证器可能将此项显示为未完全移除"
+                    : $"{profile.DisplayName}流程已完成；请按上游提示重启并检查验证结果";
+                progress?.Report(completionMessage);
+                return new DefenderRemovalResult(true, completionMessage);
             }
             catch (Exception ex)
             {
-                progress?.Report($"移除失败: {ex.Message}");
-                return false;
+                return Failure($"移除失败: {ex.Message}");
             }
             finally
             {
                 try
                 {
-                    if (Directory.Exists(tempDirectory))
+                    if (stagingDirectory is not null && Directory.Exists(stagingDirectory))
                     {
-                        Directory.Delete(tempDirectory, true);
+                        Directory.Delete(stagingDirectory, true);
                     }
                 }
                 catch
                 {
-                    // Best-effort cleanup; the OS temp directory remains the fallback.
+                    // Best-effort cleanup; the protected staging directory contains
+                    // only the already verified upstream payload.
                 }
+            }
+
+            DefenderRemovalResult Failure(string message)
+            {
+                progress?.Report(message);
+                return new DefenderRemovalResult(false, message);
             }
         }
 
@@ -143,8 +156,7 @@ namespace ReToolbox.Services
             HttpClient client,
             DefenderRemoverRelease release,
             string localPath,
-            IProgress<string>? progress,
-            CancellationToken cancellationToken)
+            IProgress<string>? progress)
         {
             const int maxAttempts = 3;
 
@@ -154,11 +166,10 @@ namespace ReToolbox.Services
                 {
                     using HttpResponseMessage response = await client.GetAsync(
                         release.DownloadUri,
-                        HttpCompletionOption.ResponseHeadersRead,
-                        cancellationToken);
+                        HttpCompletionOption.ResponseHeadersRead);
                     response.EnsureSuccessStatusCode();
 
-                    await using Stream remote = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    await using Stream remote = await response.Content.ReadAsStreamAsync();
                     await using FileStream local = new FileStream(
                         localPath,
                         FileMode.Create,
@@ -166,13 +177,13 @@ namespace ReToolbox.Services
                         FileShare.None,
                         81920,
                         true);
-                    await remote.CopyToAsync(local, cancellationToken);
+                    await remote.CopyToAsync(local);
                     return;
                 }
-                catch (Exception) when (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+                catch (Exception) when (attempt < maxAttempts)
                 {
                     progress?.Report($"下载失败，正在重试（{attempt}/{maxAttempts}）...");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt));
                 }
             }
         }

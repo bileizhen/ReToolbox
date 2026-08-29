@@ -173,7 +173,7 @@
 
 **安全说明**
 
-ReToolbox 仅通过 Windows Package Manager (`winget`) 安装软件，并以退出代码和安装状态复核结果。由于当前无法为 MAS、EdgeRemover、Defender Remover 和第三方直装包建立独立可信的固定摘要，这些远程下载后以管理员权限执行的入口已安全禁用。请勿从未知镜像手动运行替代脚本。
+ReToolbox 仅通过 Windows Package Manager (`winget`) 安装普通软件，并以退出代码和安装状态复核结果。Defender Remover 只下载固定上游标签的源码包，执行前同时校验文件大小与 SHA-256，并在仅管理员和 SYSTEM 可写的暂存目录中运行；界面提供“完整移除”和“仅移除杀毒引擎、保留 Windows 安全中心”两种范围。其他尚未建立独立可信固定摘要或发布者验证的管理员级远程执行入口仍保持禁用。请勿从未知镜像手动运行替代脚本。
 
 **🚀 一键发布**
 
@@ -319,7 +319,7 @@ No ads, no bundles — focused on getting things done.
 
 **Security note**
 
-Software installation now stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Remote administrator-level execution paths for MAS, EdgeRemover, Defender Remover, and direct third-party installers are disabled until independently trusted pinned hashes or publisher verification can be provided.
+Normal software installation stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Defender Remover downloads only a source archive from a pinned upstream tag, verifies both its size and SHA-256 before execution, and runs it from a staging directory writable only by Administrators and SYSTEM; the UI offers full removal and antivirus-only removal that keeps the Windows Security app. Other administrator-level remote execution paths remain disabled until independently trusted pinned hashes or publisher verification can be provided.
 
 **🚀 One-Click Build**
 

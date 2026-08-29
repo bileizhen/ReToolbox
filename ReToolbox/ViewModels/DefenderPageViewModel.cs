@@ -47,6 +47,7 @@ namespace ReToolbox.ViewModels
         private void RefreshStatus()
         {
             IsDefenderActive = _defenderService.IsDefenderActive();
+            HeroVersionText = DefenderRemovalWorkflow.CurrentRelease.Tag;
             if (IsDefenderActive)
             {
                 StatusMessage = "Windows Defender 正在运行";
@@ -55,7 +56,6 @@ namespace ReToolbox.ViewModels
                 HeroStatusGlyph = "\uE73E";
                 HeroStatusForeground = "#2EA043";
                 HeroStatusDetail = "正在保护";
-                HeroVersionText = DefenderRemovalWorkflow.CurrentRelease.Tag;
             }
             else
             {
@@ -65,7 +65,6 @@ namespace ReToolbox.ViewModels
                 HeroStatusGlyph = "\uE711";
                 HeroStatusForeground = "#FF5F57";
                 HeroStatusDetail = "已禁用或已移除";
-                HeroVersionText = DefenderRemovalWorkflow.CurrentRelease.Tag;
             }
         }
 
@@ -82,16 +81,8 @@ namespace ReToolbox.ViewModels
 
             try
             {
-                bool success = await _defenderService.RemoveDefenderAsync(mode, progress);
-
-                if (success)
-                {
-                    StatusMessage = $"{profile.DisplayName}流程已完成，请按上游提示重启电脑";
-                }
-                else
-                {
-                    StatusMessage = $"{profile.DisplayName}未完成，请检查提示后重试";
-                }
+                DefenderRemovalResult result = await _defenderService.RemoveDefenderAsync(mode, progress);
+                StatusMessage = result.Message;
             }
             finally
             {

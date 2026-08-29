@@ -11,6 +11,8 @@ namespace ReToolbox.Views
 {
     public sealed partial class DefenderPage : Page
     {
+        private bool _isRemovalFlowOpen;
+
         public DefenderPageViewModel ViewModel { get; }
 
         public DefenderPage()
@@ -25,58 +27,65 @@ namespace ReToolbox.Views
 
         private async void PrimaryAction_Click(object sender, RoutedEventArgs e)
         {
-            DefenderRemovalProfile fullProfile = DefenderRemovalWorkflow.GetProfile(DefenderRemovalMode.Full);
-            DefenderRemovalProfile antivirusOnlyProfile = DefenderRemovalWorkflow.GetProfile(DefenderRemovalMode.AntivirusOnly);
-
-            RadioButton fullOption = CreateModeOption(fullProfile, isChecked: true);
-            RadioButton antivirusOnlyOption = CreateModeOption(antivirusOnlyProfile, isChecked: false);
-            StackPanel options = new StackPanel { Spacing = 12 };
-            options.Children.Add(fullOption);
-            options.Children.Add(antivirusOnlyOption);
-
-            ContentDialog confirmation = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "选择 Defender 移除范围",
-                Content = options,
-                PrimaryButtonText = "确认并继续",
-                CloseButtonText = "取消",
-                DefaultButton = ContentDialogButton.Close
-            };
-
-            if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+            if (_isRemovalFlowOpen)
             {
                 return;
             }
 
-            DefenderRemovalMode mode = antivirusOnlyOption.IsChecked == true
-                ? DefenderRemovalMode.AntivirusOnly
-                : DefenderRemovalMode.Full;
-            DefenderRemovalProfile selectedProfile = DefenderRemovalWorkflow.GetProfile(mode);
-
-            ContentDialog finalConfirmation = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = $"确认{selectedProfile.DisplayName}？",
-                Content = $"{selectedProfile.Description}\n\n此操作可能不可逆并会降低系统防护能力，且上游工具会安排系统重启。建议先创建系统还原点。",
-                PrimaryButtonText = "继续执行",
-                CloseButtonText = "返回",
-                DefaultButton = ContentDialogButton.Close
-            };
-
-            if (await finalConfirmation.ShowAsync() != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            PrimaryActionButton.IsEnabled = false;
-            RemoveProgress.Visibility = Visibility.Visible;
-            StatusInfoBar.IsOpen = true;
-            StatusInfoBar.Message = $"正在准备：{selectedProfile.DisplayName}...";
-            StatusInfoBar.Severity = InfoBarSeverity.Informational;
+            _isRemovalFlowOpen = true;
+            UpdatePrimaryActionButton();
 
             try
             {
+                DefenderRemovalProfile fullProfile = DefenderRemovalWorkflow.GetProfile(DefenderRemovalMode.Full);
+                DefenderRemovalProfile antivirusOnlyProfile = DefenderRemovalWorkflow.GetProfile(DefenderRemovalMode.AntivirusOnly);
+
+                RadioButton fullOption = CreateModeOption(fullProfile, isChecked: false);
+                RadioButton antivirusOnlyOption = CreateModeOption(antivirusOnlyProfile, isChecked: true);
+                StackPanel options = new StackPanel { Spacing = 12 };
+                options.Children.Add(fullOption);
+                options.Children.Add(antivirusOnlyOption);
+
+                ContentDialog confirmation = new ContentDialog
+                {
+                    XamlRoot = XamlRoot,
+                    Title = "选择 Defender 移除范围",
+                    Content = options,
+                    PrimaryButtonText = "确认并继续",
+                    CloseButtonText = "取消",
+                    DefaultButton = ContentDialogButton.Close
+                };
+
+                if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+                {
+                    return;
+                }
+
+                DefenderRemovalMode mode = antivirusOnlyOption.IsChecked == true
+                    ? DefenderRemovalMode.AntivirusOnly
+                    : DefenderRemovalMode.Full;
+                DefenderRemovalProfile selectedProfile = DefenderRemovalWorkflow.GetProfile(mode);
+
+                ContentDialog finalConfirmation = new ContentDialog
+                {
+                    XamlRoot = XamlRoot,
+                    Title = $"确认{selectedProfile.DisplayName}？",
+                    Content = $"{selectedProfile.Description}\n\n此操作可能不可逆并会降低系统防护能力，且上游工具会安排系统重启。建议先创建完整系统映像；还原点不一定能撤销全部更改。",
+                    PrimaryButtonText = "继续执行",
+                    CloseButtonText = "返回",
+                    DefaultButton = ContentDialogButton.Close
+                };
+
+                if (await finalConfirmation.ShowAsync() != ContentDialogResult.Primary)
+                {
+                    return;
+                }
+
+                RemoveProgress.Visibility = Visibility.Visible;
+                StatusInfoBar.IsOpen = true;
+                StatusInfoBar.Message = $"正在准备：{selectedProfile.DisplayName}...";
+                StatusInfoBar.Severity = InfoBarSeverity.Informational;
+
                 await ViewModel.RemoveDefenderCommand.ExecuteAsync(mode);
                 StatusInfoBar.Message = ViewModel.StatusMessage;
                 StatusInfoBar.Severity = ViewModel.StatusMessage.Contains("流程已完成")
@@ -91,6 +100,7 @@ namespace ReToolbox.Views
             finally
             {
                 RemoveProgress.Visibility = Visibility.Collapsed;
+                _isRemovalFlowOpen = false;
                 UpdatePrimaryActionButton();
             }
         }
@@ -102,7 +112,9 @@ namespace ReToolbox.Views
             StackPanel content = new StackPanel { Spacing = 3 };
             content.Children.Add(new TextBlock
             {
-                Text = profile.DisplayName,
+                Text = profile.KeepsWindowsSecurity
+                    ? $"{profile.DisplayName}（推荐）"
+                    : profile.DisplayName,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
             });
             content.Children.Add(new TextBlock
@@ -137,7 +149,7 @@ namespace ReToolbox.Views
         {
             PrimaryActionButton.Content = "选择移除模式";
             PrimaryActionButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-            PrimaryActionButton.IsEnabled = !ViewModel.IsRemoving;
+            PrimaryActionButton.IsEnabled = !ViewModel.IsRemoving && !_isRemovalFlowOpen;
         }
     }
 }
