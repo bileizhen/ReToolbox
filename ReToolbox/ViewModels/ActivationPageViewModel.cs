@@ -37,6 +37,8 @@ namespace ReToolbox.ViewModels
         [ObservableProperty]
         private string _activationStatusForeground = "#9CA3AF";
 
+        public ActivationOutcome LastActivationOutcome { get; private set; }
+
         public ActivationPageViewModel(ActivationService activationService)
         {
             _activationService = activationService;
@@ -72,23 +74,22 @@ namespace ReToolbox.ViewModels
         private async Task ActivateAsync()
         {
             IsActivating = true;
+            LastActivationOutcome = ActivationOutcome.None;
             StatusMessage = "正在启动激活脚本...";
 
             var progress = new Progress<string>(msg => StatusMessage = msg);
 
-            bool success = await _activationService.ActivateAsync(progress);
-
-            if (success)
+            try
             {
-                StatusMessage = "激活脚本已执行完成，请检查激活状态";
+                ActivationResult result = await _activationService.ActivateAsync(progress);
+                LastActivationOutcome = result.Outcome;
+                StatusMessage = result.Message;
+                RefreshStatus();
             }
-            else
+            finally
             {
-                StatusMessage = "激活失败，请重试";
+                IsActivating = false;
             }
-
-            IsActivating = false;
-            RefreshStatus();
         }
     }
 }

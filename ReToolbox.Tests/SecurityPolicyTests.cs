@@ -47,7 +47,6 @@ public class SecurityPolicyTests
     [Fact]
     public void AdministratorRemoteExecutionPoliciesFailClosed()
     {
-        Assert.False(SecurityPolicy.AllowRemoteActivationScripts);
         Assert.False(SecurityPolicy.AllowUnverifiedDirectInstallers);
         Assert.False(SecurityPolicy.AllowUnverifiedAdministratorTools);
     }

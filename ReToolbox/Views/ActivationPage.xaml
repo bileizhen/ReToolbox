@@ -86,8 +86,8 @@
 
                 <controls:SettingsCard
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                    Description="出于管理员权限与供应链安全，远程激活脚本执行已禁用。请改用下方官方渠道获取工具。"
-                    Header="一键激活（已禁用）">
+                    Description="使用固定并校验过的 MAS 3.11，以 HWID 模式激活当前 Windows 版本，不自动更改 Edition"
+                    Header="一键激活">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE977;" />
                     </controls:SettingsCard.HeaderIcon>
@@ -96,8 +96,7 @@
                             x:Name="ActivateButton"
                             Click="Activate_Click"
                             Content="激活 Windows"
-                            Style="{StaticResource AccentButtonStyle}"
-                            IsEnabled="False" />
+                            Style="{StaticResource AccentButtonStyle}" />
                         <Button Click="RefreshStatus_Click" Content="刷新状态" />
                     </StackPanel>
                 </controls:SettingsCard>

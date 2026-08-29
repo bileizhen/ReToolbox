@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\ReToolbox\Services\ActivationWorkflow.cs" Link="ActivationWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\DefenderRemovalWorkflow.cs" Link="DefenderRemovalWorkflow.cs" />
     <Compile Include="..\ReToolbox\Utils\ArtifactIntegrity.cs" Link="ArtifactIntegrity.cs" />
     <Compile Include="..\ReToolbox\Utils\InputValidation.cs" Link="InputValidation.cs" />

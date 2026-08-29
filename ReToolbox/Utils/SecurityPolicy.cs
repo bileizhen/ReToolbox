@@ -5,8 +5,6 @@ namespace ReToolbox.Utils
     // independently verified digest or trusted publisher signature.
     public static class SecurityPolicy
     {
-        public static bool AllowRemoteActivationScripts => false;
-
         public static bool AllowUnverifiedDirectInstallers => false;
 
         public static bool AllowUnverifiedAdministratorTools => false;

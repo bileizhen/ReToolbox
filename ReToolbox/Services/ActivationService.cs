@@ -1,6 +1,9 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Management;
+using System.Net.Http;
 using System.Threading.Tasks;
 using ReToolbox.Utils;
 
@@ -8,10 +11,6 @@ namespace ReToolbox.Services
 {
     public class ActivationService
     {
-        // Remote activation scripts remain disabled. Executing mutable third-party
-        // PowerShell as administrator is a supply-chain boundary that requires a
-        // pinned, independently verified artifact before it can be enabled.
-
         // LicenseStatus values from SoftwareLicensingProduct:
         //   0 = Unlicensed, 1 = Licensed (permanently activated),
         //   2 = OOB grace, 3 = Out-of-box grace / KMS activated,
@@ -112,17 +111,152 @@ namespace ReToolbox.Services
             }
         }
 
-        public Task<bool> ActivateAsync(IProgress<string>? progress = null)
+        public async Task<ActivationResult> ActivateAsync(IProgress<string>? progress = null)
         {
-            if (!SecurityPolicy.AllowRemoteActivationScripts)
+            if (IsActivated())
             {
-                progress?.Report(
-                    "为保护管理员权限安全，远程 MAS 脚本执行已禁用。" +
-                    "请从 MAS 官方渠道手动获取并核验工具，或等待 ReToolbox 提供带固定摘要的受信版本。");
-                return Task.FromResult(false);
+                const string alreadyActivated = "Windows 已处于激活状态，无需重复执行";
+                progress?.Report(alreadyActivated);
+                return new ActivationResult(ActivationOutcome.Activated, alreadyActivated);
             }
 
-            return Task.FromResult(false);
+            ActivationScriptRelease release = ActivationWorkflow.CurrentRelease;
+            string? stagingDirectory = null;
+
+            try
+            {
+                stagingDirectory = SecureStagingDirectory.Create();
+                string scriptPath = Path.Combine(stagingDirectory, release.FileName);
+
+                progress?.Report($"正在下载并校验 MAS {release.Tag}...");
+                using HttpClient client = new HttpClient
+                {
+                    Timeout = TimeSpan.FromMinutes(2)
+                };
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("ReToolbox/1.4");
+                await DownloadWithRetryAsync(client, release, scriptPath, progress);
+
+                await using (FileStream downloaded = new FileStream(
+                    scriptPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read))
+                {
+                    if (downloaded.Length != release.Size ||
+                        !await ArtifactIntegrity.HasExpectedSha256Async(
+                            downloaded,
+                            release.Sha256))
+                    {
+                        return Failure("安全校验失败：MAS 文件大小或 SHA-256 与固定版本不匹配，已阻止执行");
+                    }
+
+                    progress?.Report("校验通过，正在启动 MAS HWID 激活...");
+                    using Process process = new Process();
+                    process.StartInfo.FileName = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.System),
+                        "cmd.exe");
+                    process.StartInfo.WorkingDirectory = stagingDirectory;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.CreateNoWindow = false;
+                    process.StartInfo.ArgumentList.Add("/d");
+                    process.StartInfo.ArgumentList.Add("/c");
+                    process.StartInfo.ArgumentList.Add(scriptPath);
+                    process.StartInfo.ArgumentList.Add(release.ActivationSwitch);
+
+                    if (!process.Start())
+                    {
+                        return Failure("无法启动 MAS 激活脚本");
+                    }
+
+                    await process.WaitForExitAsync();
+                    if (process.ExitCode != 0)
+                    {
+                        return Failure($"MAS 激活脚本已退出，代码：{process.ExitCode}");
+                    }
+                }
+
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    if (IsActivated())
+                    {
+                        const string activated = "Windows 激活已验证成功";
+                        progress?.Report(activated);
+                        return new ActivationResult(ActivationOutcome.Activated, activated);
+                    }
+
+                    if (attempt < 2)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1));
+                    }
+                }
+
+                const string awaitingVerification =
+                    "MAS 脚本已执行，但尚未检测到激活状态；请稍后刷新状态或查看脚本窗口中的结果";
+                progress?.Report(awaitingVerification);
+                return new ActivationResult(
+                    ActivationOutcome.AwaitingVerification,
+                    awaitingVerification);
+            }
+            catch (Exception ex)
+            {
+                return Failure($"激活失败：{ex.Message}");
+            }
+            finally
+            {
+                try
+                {
+                    if (stagingDirectory is not null && Directory.Exists(stagingDirectory))
+                    {
+                        Directory.Delete(stagingDirectory, true);
+                    }
+                }
+                catch
+                {
+                    // Best-effort cleanup of the verified payload.
+                }
+            }
+
+            ActivationResult Failure(string message)
+            {
+                progress?.Report(message);
+                return new ActivationResult(ActivationOutcome.Failed, message);
+            }
+        }
+
+        private static async Task DownloadWithRetryAsync(
+            HttpClient client,
+            ActivationScriptRelease release,
+            string localPath,
+            IProgress<string>? progress)
+        {
+            const int maxAttempts = 3;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    using HttpResponseMessage response = await client.GetAsync(
+                        release.DownloadUri,
+                        HttpCompletionOption.ResponseHeadersRead);
+                    response.EnsureSuccessStatusCode();
+
+                    await using Stream remote = await response.Content.ReadAsStreamAsync();
+                    await using FileStream local = new FileStream(
+                        localPath,
+                        FileMode.Create,
+                        FileAccess.Write,
+                        FileShare.None,
+                        81920,
+                        true);
+                    await remote.CopyToAsync(local);
+                    return;
+                }
+                catch (Exception) when (attempt < maxAttempts)
+                {
+                    progress?.Report($"下载失败，正在重试（{attempt}/{maxAttempts}）...");
+                    await Task.Delay(TimeSpan.FromSeconds(attempt));
+                }
+            }
         }
 
         private static string GetEditionDisplayName(string? editionId)
