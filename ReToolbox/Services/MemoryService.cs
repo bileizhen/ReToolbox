@@ -37,9 +37,7 @@ namespace ReToolbox.Services
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool SetSystemFileCacheSize(uint MinimumFileCacheSize, uint MaximumFileCacheSize, uint Flags);
 
-        // Pointer-based signature: this project disables runtime marshalling
-        // (DisableRuntimeMarshalling=true), which rejects by-ref managed structs,
-        // so we pass a raw pointer and do the call in an unsafe block.
+        // Use the native pointer signature directly for this fixed-layout structure.
         [DllImport("kernel32.dll", SetLastError = false, EntryPoint = "GlobalMemoryStatusEx")]
         private static extern unsafe int GlobalMemoryStatusEx(MEMORYSTATUSEX* lpBuffer);
 

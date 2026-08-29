@@ -16,9 +16,7 @@ namespace ReToolbox.Services
         // Multi-device display separator (" / " between e.g. two GPUs).
         private const string Separator = " / ";
 
-        // Explicit [MarshalAs] is required because this project disables runtime
-        // marshalling (DisableRuntimeMarshalling=true); otherwise the string
-        // parameters wouldn't marshal and the display names would come back empty.
+        // Keep the native Unicode string layout explicit for the display APIs.
         [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "EnumDisplayDevicesW")]
         private static extern bool EnumDisplayDevices([MarshalAs(UnmanagedType.LPWStr)] string? lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
 

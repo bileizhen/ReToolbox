@@ -151,7 +151,7 @@
                 </VisualState>
             </VisualStateGroup>
             <VisualStateGroup x:Name="WindowActivationStates">
-                <VisualState x:Name="Activated" />
+                <VisualState x:Name="WindowActivated" />
                 <VisualState x:Name="Deactivated">
                     <VisualState.Setters>
                         <Setter Target="AppTitle.Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}" />

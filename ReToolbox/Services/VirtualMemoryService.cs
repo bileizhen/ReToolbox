@@ -15,8 +15,7 @@ namespace ReToolbox.Services
         private const string PagingFilesValue = "PagingFiles";
         private const string AutoManagedValue = "AutoManagedPagefile";
 
-        // Pointer-based signature: this project disables runtime marshalling
-        // (DisableRuntimeMarshalling=true), which rejects by-ref managed structs.
+        // Use the native pointer signature directly for this fixed-layout structure.
         [DllImport("kernel32.dll", SetLastError = false, EntryPoint = "GlobalMemoryStatusEx")]
         private static extern unsafe int GlobalMemoryStatusEx(MEMORYSTATUSEX* lpBuffer);
 

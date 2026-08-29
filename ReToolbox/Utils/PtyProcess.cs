@@ -43,10 +43,6 @@ namespace ReToolbox.Utils
 
             // input pipe: PTY reads stdin from inputRead (we never write input).
             // output pipe: PTY writes rendered output to outputWrite, we read outputRead.
-#pragma warning disable CA1420
-            // All by-ref P/Invoke args here are blittable (IntPtr, fixed-layout
-            // structs, primitives), so they pin correctly under DisableRuntimeMarshalling.
-            // The analyzer can't prove the struct layouts, so it warns conservatively.
             if (Native.CreatePipe(out IntPtr inputRead, out IntPtr inputWrite, ref sa, 0) == 0)
             {
                 throw new Win32Exception(Marshal.GetLastSystemError());
@@ -157,7 +153,6 @@ namespace ReToolbox.Utils
                 Native.CloseHandle(inputWrite);
                 Native.CloseHandle(outputRead);
             }
-#pragma warning restore CA1420
         }
 
         // Reads the PTY output pipe to EOF, decoding bytes, stripping virtual-terminal
@@ -168,7 +163,6 @@ namespace ReToolbox.Utils
             byte[] buffer = new byte[4096];
             string pending = string.Empty;
 
-#pragma warning disable CA1420
             while (Native.ReadFile(outputRead, buffer, (uint)buffer.Length,
                        out uint readN, IntPtr.Zero) != 0 && readN > 0)
             {
@@ -193,7 +187,6 @@ namespace ReToolbox.Utils
             {
                 onLine(pending);
             }
-#pragma warning restore CA1420
         }
 
         private static string StripControl(string text)
@@ -260,12 +253,6 @@ namespace ReToolbox.Utils
             public int dwThreadId;
         }
 
-        // All P/Invoke signatures below use only blittable types (IntPtr, fixed-layout
-        // structs, primitives, one-dimensional byte array), so they pin and marshal
-        // correctly even though this assembly disables runtime marshalling. CA1420
-        // fires on any by-ref/managed P/Invoke argument because it can't verify the
-        // struct layouts; suppress it for this whole interop block.
-#pragma warning disable CA1420
         private static class Native
         {
             [DllImport("kernel32.dll")]
@@ -275,9 +262,7 @@ namespace ReToolbox.Utils
             [DllImport("kernel32.dll")]
             public static extern void ClosePseudoConsole(IntPtr hPC);
 
-            // BOOL return/params are int, not C# bool: this assembly disables runtime
-            // marshalling, under which [MarshalAs] is ignored and bool is one byte,
-            // which would misalign the Win32 BOOL (four bytes) and corrupt the call.
+            // BOOL return/params stay explicit as 32-bit integers to match Win32.
 
             [DllImport("kernel32.dll")]
             public static extern int CreatePipe(
@@ -323,6 +308,5 @@ namespace ReToolbox.Utils
             [DllImport("kernel32.dll")]
             public static extern int CloseHandle(IntPtr hObject);
         }
-#pragma warning restore CA1420
     }
 }
