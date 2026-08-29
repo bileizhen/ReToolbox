@@ -67,7 +67,9 @@ public class DefenderRemovalWorkflowTests
         Assert.Contains("FileSystemAclExtensions.Create", staging, StringComparison.Ordinal);
         Assert.Contains("BuiltinAdministratorsSid", staging, StringComparison.Ordinal);
         Assert.Contains("LocalSystemSid", staging, StringComparison.Ordinal);
+        Assert.Contains("AwaitingRestartVerification", service, StringComparison.Ordinal);
         Assert.Contains("RemoveDefenderCommand.ExecuteAsync", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("Contains(\"流程已完成\")", page, StringComparison.Ordinal);
         Assert.DoesNotContain("移除 Defender（已禁用）", page, StringComparison.Ordinal);
         Assert.DoesNotContain("下载与执行已禁用", page, StringComparison.Ordinal);
     }

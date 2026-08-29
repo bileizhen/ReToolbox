@@ -22,7 +22,16 @@ namespace ReToolbox.Services
         string Sha256,
         long Size);
 
-    public sealed record DefenderRemovalResult(bool Success, string Message);
+    public enum DefenderRemovalOutcome
+    {
+        None,
+        Failed,
+        AwaitingRestartVerification
+    }
+
+    public sealed record DefenderRemovalResult(
+        DefenderRemovalOutcome Outcome,
+        string Message);
 
     public static class DefenderRemovalWorkflow
     {

@@ -37,6 +37,8 @@ namespace ReToolbox.ViewModels
         [ObservableProperty]
         private string _heroStatusForeground = "#9CA3AF";
 
+        public DefenderRemovalOutcome LastRemovalOutcome { get; private set; }
+
         public DefenderPageViewModel(DefenderService defenderService)
         {
             _defenderService = defenderService;
@@ -47,7 +49,7 @@ namespace ReToolbox.ViewModels
         private void RefreshStatus()
         {
             IsDefenderActive = _defenderService.IsDefenderActive();
-            HeroVersionText = DefenderRemovalWorkflow.CurrentRelease.Tag;
+            HeroVersionText = $"移除工具：{DefenderRemovalWorkflow.CurrentRelease.Tag}";
             if (IsDefenderActive)
             {
                 StatusMessage = "Windows Defender 正在运行";
@@ -72,6 +74,7 @@ namespace ReToolbox.ViewModels
         private async Task RemoveDefenderAsync(DefenderRemovalMode mode)
         {
             IsRemoving = true;
+            LastRemovalOutcome = DefenderRemovalOutcome.None;
             DefenderRemovalProfile profile = DefenderRemovalWorkflow.GetProfile(mode);
             StatusMessage = $"正在执行：{profile.DisplayName}...";
             var progress = new Progress<string>(msg =>
@@ -82,6 +85,7 @@ namespace ReToolbox.ViewModels
             try
             {
                 DefenderRemovalResult result = await _defenderService.RemoveDefenderAsync(mode, progress);
+                LastRemovalOutcome = result.Outcome;
                 StatusMessage = result.Message;
             }
             finally

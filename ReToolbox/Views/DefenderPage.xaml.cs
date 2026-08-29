@@ -88,9 +88,12 @@ namespace ReToolbox.Views
 
                 await ViewModel.RemoveDefenderCommand.ExecuteAsync(mode);
                 StatusInfoBar.Message = ViewModel.StatusMessage;
-                StatusInfoBar.Severity = ViewModel.StatusMessage.Contains("流程已完成")
-                    ? InfoBarSeverity.Success
-                    : InfoBarSeverity.Warning;
+                StatusInfoBar.Severity = ViewModel.LastRemovalOutcome switch
+                {
+                    DefenderRemovalOutcome.AwaitingRestartVerification => InfoBarSeverity.Informational,
+                    DefenderRemovalOutcome.Failed => InfoBarSeverity.Error,
+                    _ => InfoBarSeverity.Warning
+                };
             }
             catch (Exception ex)
             {

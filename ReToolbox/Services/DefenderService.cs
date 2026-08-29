@@ -120,10 +120,12 @@ namespace ReToolbox.Services
                 }
 
                 string completionMessage = profile.KeepsWindowsSecurity
-                    ? $"{profile.DisplayName}流程已完成；Windows 安全中心仍存在是预期结果，上游通用验证器可能将此项显示为未完全移除"
-                    : $"{profile.DisplayName}流程已完成；请按上游提示重启并检查验证结果";
+                    ? $"{profile.DisplayName}脚本已执行，等待重启验证；Windows 安全中心仍存在是预期结果，上游通用验证器可能将此项显示为未完全移除"
+                    : $"{profile.DisplayName}脚本已执行，等待重启后验证实际移除结果";
                 progress?.Report(completionMessage);
-                return new DefenderRemovalResult(true, completionMessage);
+                return new DefenderRemovalResult(
+                    DefenderRemovalOutcome.AwaitingRestartVerification,
+                    completionMessage);
             }
             catch (Exception ex)
             {
@@ -148,7 +150,9 @@ namespace ReToolbox.Services
             DefenderRemovalResult Failure(string message)
             {
                 progress?.Report(message);
-                return new DefenderRemovalResult(false, message);
+                return new DefenderRemovalResult(
+                    DefenderRemovalOutcome.Failed,
+                    message);
             }
         }
 
