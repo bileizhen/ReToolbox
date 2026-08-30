@@ -157,13 +157,9 @@ namespace ReToolbox.Services
                         release.Sha256,
                         progress))
                 {
-                    if (downloaded.Length != release.Size ||
-                        !await ArtifactIntegrity.HasExpectedSha256Async(
-                            downloaded,
-                            release.Sha256))
-                    {
-                        return Failure("安全校验失败：MAS 文件大小或 SHA-256 与固定版本不匹配，已阻止执行");
-                    }
+                    string runnerPath = Path.Combine(stagingDirectory, "run-mas.cmd");
+                    string capturedOutputPath = Path.Combine(stagingDirectory, "mas-output.log");
+                    await WriteRunnerAsync(runnerPath, release);
 
                     progress?.Report("校验通过，正在启动 MAS HWID 激活...");
                     using Process process = new Process();
@@ -171,55 +167,56 @@ namespace ReToolbox.Services
                         Environment.GetFolderPath(Environment.SpecialFolder.System),
                         "cmd.exe");
                     process.StartInfo.WorkingDirectory = stagingDirectory;
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.RedirectStandardError = true;
+                    // MAS uses console-aware commands such as timeout. A real,
+                    // visible console prevents redirected-input failures while
+                    // the trusted runner captures output to the staging area.
+                    process.StartInfo.UseShellExecute = true;
+                    process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
                     process.StartInfo.ArgumentList.Add("/d");
                     process.StartInfo.ArgumentList.Add("/c");
-                    process.StartInfo.ArgumentList.Add(scriptPath);
-                    process.StartInfo.ArgumentList.Add(release.ActivationSwitch);
+                    process.StartInfo.ArgumentList.Add(runnerPath);
 
                     if (!process.Start())
                     {
                         return Failure("无法启动 MAS 激活脚本");
                     }
 
-                    Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-                    Task<string> standardError = process.StandardError.ReadToEndAsync();
                     await process.WaitForExitAsync();
-                    string output = await standardOutput;
-                    string error = await standardError;
+                    string output = File.Exists(capturedOutputPath)
+                        ? await File.ReadAllTextAsync(capturedOutputPath)
+                        : "MAS 未生成捕获输出。";
                     diagnosticLogPath = await TryWriteDiagnosticLogAsync(
                         release,
                         output,
-                        error,
                         process.ExitCode,
                         progress);
+
+                    // The Windows license state is authoritative. Some batch
+                    // commands can return a nonzero diagnostic exit code even
+                    // after activation has completed successfully.
+                    for (int attempt = 0; attempt < 3; attempt++)
+                    {
+                        if (IsActivated())
+                        {
+                            const string activated = "Windows 激活已验证成功";
+                            progress?.Report(activated);
+                            return new ActivationResult(
+                                ActivationOutcome.Activated,
+                                activated,
+                                diagnosticLogPath);
+                        }
+
+                        if (attempt < 2)
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(1));
+                        }
+                    }
 
                     if (process.ExitCode != 0)
                     {
                         return Failure(
                             $"MAS 激活脚本已退出，代码：{process.ExitCode}。" +
                             FormatLogHint(diagnosticLogPath));
-                    }
-                }
-
-                for (int attempt = 0; attempt < 3; attempt++)
-                {
-                    if (IsActivated())
-                    {
-                        const string activated = "Windows 激活已验证成功";
-                        progress?.Report(activated);
-                        return new ActivationResult(
-                            ActivationOutcome.Activated,
-                            activated,
-                            diagnosticLogPath);
-                    }
-
-                    if (attempt < 2)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(1));
                     }
                 }
 
@@ -259,8 +256,7 @@ namespace ReToolbox.Services
 
         private static async Task<string?> TryWriteDiagnosticLogAsync(
             ActivationScriptRelease release,
-            string standardOutput,
-            string standardError,
+            string capturedOutput,
             int exitCode,
             IProgress<string>? progress)
         {
@@ -280,8 +276,7 @@ namespace ReToolbox.Services
                     $"Switch: {release.ActivationSwitch}{Environment.NewLine}" +
                     $"Exit code: {exitCode}{Environment.NewLine}" +
                     $"Timestamp: {DateTimeOffset.Now:O}{Environment.NewLine}" +
-                    $"{Environment.NewLine}--- stdout ---{Environment.NewLine}{standardOutput}" +
-                    $"{Environment.NewLine}--- stderr ---{Environment.NewLine}{standardError}";
+                    $"{Environment.NewLine}--- MAS output ---{Environment.NewLine}{capturedOutput}";
                 await File.WriteAllTextAsync(logPath, content);
                 return logPath;
             }
@@ -290,6 +285,18 @@ namespace ReToolbox.Services
                 progress?.Report($"无法保存 MAS 诊断日志：{ex.Message}");
                 return null;
             }
+        }
+
+        private static Task WriteRunnerAsync(
+            string runnerPath,
+            ActivationScriptRelease release)
+        {
+            string content =
+                "@echo off\r\n" +
+                $"call \"%~dp0{release.FileName}\" {release.ActivationSwitch} " +
+                "> \"%~dp0mas-output.log\" 2>&1\r\n" +
+                "exit /b %errorlevel%\r\n";
+            return File.WriteAllTextAsync(runnerPath, content);
         }
 
         private static string FormatLogHint(string? diagnosticLogPath)

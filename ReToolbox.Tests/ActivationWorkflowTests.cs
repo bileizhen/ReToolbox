@@ -37,7 +37,9 @@ public class ActivationWorkflowTests
         Assert.Contains("VerifiedArtifactDownloader.DownloadAndOpenAsync", service, StringComparison.Ordinal);
         Assert.Contains("ArtifactIntegrity.HasExpectedSha256Async", downloader, StringComparison.Ordinal);
         Assert.Contains("SecureStagingDirectory.Create", service, StringComparison.Ordinal);
-        Assert.Contains("RedirectStandardOutput = true", service, StringComparison.Ordinal);
+        Assert.Contains("UseShellExecute = true", service, StringComparison.Ordinal);
+        Assert.Contains("run-mas.cmd", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("RedirectStandardOutput = true", service, StringComparison.Ordinal);
         Assert.Contains("DiagnosticLogPath", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("ActivationOutcome.AwaitingVerification", service, StringComparison.Ordinal);
         Assert.DoesNotContain("AllowRemoteActivationScripts", service, StringComparison.Ordinal);
@@ -45,6 +47,8 @@ public class ActivationWorkflowTests
         Assert.DoesNotContain("IsEnabled=\"False\"", page, StringComparison.Ordinal);
         Assert.Contains("ActivateCommand.ExecuteAsync", pageCode, StringComparison.Ordinal);
         Assert.Contains("OpenDiagnosticLog_Click", pageCode, StringComparison.Ordinal);
+        Assert.Contains("notepad.exe", pageCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("FileName = logPath", pageCode, StringComparison.Ordinal);
         Assert.DoesNotContain("远程激活脚本执行已禁用", pageCode, StringComparison.Ordinal);
     }
 

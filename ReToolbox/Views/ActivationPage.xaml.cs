@@ -94,11 +94,16 @@ namespace ReToolbox.Views
                 return;
             }
 
-            Process.Start(new ProcessStartInfo
+            string notepadPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "notepad.exe");
+            ProcessStartInfo startInfo = new ProcessStartInfo
             {
-                FileName = logPath,
-                UseShellExecute = true
-            });
+                FileName = notepadPath,
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add(logPath);
+            Process.Start(startInfo);
         }
 
         private void RefreshStatus_Click(object sender, RoutedEventArgs e)
