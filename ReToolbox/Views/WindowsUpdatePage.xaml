@@ -111,8 +111,8 @@
 
                 <controls:SettingsCard
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                    Description="通过组织策略长期禁用自动更新，并限制系统设置中的手动检查更新入口"
-                    Header="策略禁更">
+                    Description="通过组织策略长期暂停自动更新，并限制系统设置中的手动检查更新入口"
+                    Header="策略暂停">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE895;" />
                     </controls:SettingsCard.HeaderIcon>
@@ -138,7 +138,7 @@
                 <controls:SettingsCard
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
                     Description="阻止 Windows Update 自动安装驱动程序更新"
-                    Header="禁用驱动更新">
+                    Header="阻止驱动更新">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE968;" />
                     </controls:SettingsCard.HeaderIcon>
@@ -150,7 +150,7 @@
 
                 <controls:SettingsCard
                     Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                    Description="清理 Windows Update 禁更策略、暂停时间和相关限制项"
+                    Description="清理 Windows Update 限制策略、暂停时间和相关限制项"
                     Header="恢复默认策略">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE72C;" />

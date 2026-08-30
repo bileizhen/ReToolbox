@@ -84,7 +84,7 @@ public class SafetyWorkflowTests
                     continue;
                 }
 
-                Assert.DoesNotContain("已禁用", File.ReadAllText(path), StringComparison.Ordinal);
+                Assert.DoesNotContain("禁用", File.ReadAllText(path), StringComparison.Ordinal);
             }
         }
     }

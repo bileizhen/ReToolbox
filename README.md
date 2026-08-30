@@ -173,7 +173,7 @@
 
 **安全说明**
 
-ReToolbox 仅通过 Windows Package Manager (`winget`) 安装普通软件，并以退出代码和安装状态复核结果。Windows 激活只下载固定 MAS 3.11 提交中的 `MAS_AIO.cmd`，校验文件大小与 SHA-256 后以 `/HWID-NoEditionChange` 运行；不会自动更改 Windows Edition。Defender Remover 同样使用固定上游标签、摘要校验和受保护暂存目录。其他尚未建立独立可信固定摘要或发布者验证的管理员级远程执行入口仍保持禁用。请勿从未知镜像手动运行替代脚本。
+ReToolbox 仅通过 Windows Package Manager (`winget`) 安装普通软件，并以退出代码和安装状态复核结果。Windows 激活只下载固定 MAS 3.11 提交中的 `MAS_AIO.cmd`，校验文件大小与 SHA-256 后以 `/HWID-NoEditionChange` 运行；不会自动更改 Windows Edition。Defender Remover 与 EdgeRemover 同样使用固定上游版本、摘要校验和受保护暂存目录。软件目录不包含未经校验的直接安装包，请勿从未知镜像手动运行替代脚本。
 
 **🚀 一键发布**
 

@@ -150,9 +150,8 @@ namespace ReToolbox.Views
                 return InfoBarSeverity.Error;
             }
 
-            if (message.Contains("禁用", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("暂停 10 年", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("策略禁用", StringComparison.OrdinalIgnoreCase) ||
+            if (message.Contains("暂停", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("阻止", StringComparison.OrdinalIgnoreCase) ||
                 message.Contains("被限制", StringComparison.OrdinalIgnoreCase))
             {
                 return InfoBarSeverity.Warning;

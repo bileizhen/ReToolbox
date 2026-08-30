@@ -77,7 +77,7 @@ namespace ReToolbox.ViewModels
                 if (IsUpdatePaused)
                 {
                     _updateService.PauseUpdates();
-                    StatusMessage = "Windows 更新已通过策略禁用，手动检查入口也会被限制";
+                    StatusMessage = "Windows 更新已通过策略暂停，手动检查入口也会被限制";
                 }
                 else
                 {
@@ -100,7 +100,7 @@ namespace ReToolbox.ViewModels
                 if (isPaused)
                 {
                     _updateService.PauseUpdates();
-                    StatusMessage = "Windows 更新已通过策略禁用，手动检查入口也会被限制";
+                    StatusMessage = "Windows 更新已通过策略暂停，手动检查入口也会被限制";
                 }
                 else
                 {
@@ -157,7 +157,7 @@ namespace ReToolbox.ViewModels
 
             if (AreDriverUpdatesDisabled)
             {
-                activePolicies.Add("禁用驱动更新");
+                activePolicies.Add("阻止驱动更新");
             }
 
             if (activePolicies.Count == 0)
