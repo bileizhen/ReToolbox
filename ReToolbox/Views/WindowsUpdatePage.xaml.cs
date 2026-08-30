@@ -77,7 +77,7 @@ namespace ReToolbox.Views
 
             ViewModel.AreDriverUpdatesDisabled = toggleSwitch.IsOn;
             ViewModel.RefreshState();
-            ShowStatus(toggleSwitch.IsOn ? "驱动更新已禁用" : "驱动更新已启用");
+            ShowStatus(toggleSwitch.IsOn ? "Windows Update 驱动推送已阻止" : "Windows Update 驱动推送已允许");
         }
 
         private void TenYearPauseToggle_Toggled(object sender, RoutedEventArgs e)

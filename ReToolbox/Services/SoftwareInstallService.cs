@@ -38,21 +38,6 @@ namespace ReToolbox.Services
             {
                 success = await InstallFromWingetAsync(software, progress, downloadProgress, cancellationToken);
             }
-            else if (!string.IsNullOrWhiteSpace(software.DownloadUrl))
-            {
-                if (!SecurityPolicy.AllowUnverifiedDirectInstallers)
-                {
-                    progress?.Report(LogEntry.Normal(
-                        $"{software.Name} 的直接下载安装已禁用：缺少固定摘要或可信发布者验证。"));
-                    success = false;
-                }
-                else
-                {
-                    // No direct-installer implementation is shipped while this
-                    // policy remains disabled.
-                    success = false;
-                }
-            }
             else
             {
                 success = false;
@@ -403,7 +388,7 @@ namespace ReToolbox.Services
                 new() { Name = "Git", WingetId = "Git.Git", Category = "开发工具", Description = "版本控制系统", IconGlyph = "\uE943" },
                 new() { Name = "Windows Terminal", WingetId = "Microsoft.WindowsTerminal", Category = "开发工具", Description = "终端模拟器", IconGlyph = "\uE756" },
                 new() { Name = "VLC", WingetId = "VideoLAN.VLC", Category = "媒体", Description = "多媒体播放器", IconGlyph = "\uEC4F" },
-                new() { Name = "mpv 懒人包", WingetId = "", DownloadUrl = "gh:hooke007/mpv_PlayKit", Category = "媒体", Description = "MPV 播放器整合配置懒人包", IconGlyph = "\uEC4F" },
+                new() { Name = "mpv 播放器", WingetId = "shinchiro.mpv", Category = "媒体", Description = "轻量级开源媒体播放器", IconGlyph = "\uEC4F" },
                 new() { Name = "7-Zip", WingetId = "7zip.7zip", Category = "系统工具", Description = "文件压缩工具", IconGlyph = "\uE8E5" },
                 new() { Name = "PowerToys", WingetId = "Microsoft.PowerToys", Category = "系统工具", Description = "Windows 增强工具集", IconGlyph = "\uEA6D" },
                 new() { Name = "Everything", WingetId = "voidtools.Everything", Category = "系统工具", Description = "文件搜索工具", IconGlyph = "\uE721" },

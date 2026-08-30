@@ -61,12 +61,12 @@ namespace ReToolbox.ViewModels
             }
             else
             {
-                StatusMessage = "Windows Defender 已禁用或已移除";
-                HeroStatusText = "已禁用";
+                StatusMessage = "Windows Defender 未运行或已移除";
+                HeroStatusText = "未运行";
                 HeroTitle = "Windows Defender";
                 HeroStatusGlyph = "\uE711";
                 HeroStatusForeground = "#FF5F57";
-                HeroStatusDetail = "已禁用或已移除";
+                HeroStatusDetail = "未运行或已移除";
             }
         }
 

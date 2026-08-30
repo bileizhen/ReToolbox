@@ -3,7 +3,7 @@ using Xunit;
 
 namespace ReToolbox.Tests;
 
-public class SecurityPolicyTests
+public class SafetyWorkflowTests
 {
     [Theory]
     [InlineData("https://gh-proxy.com", "https://gh-proxy.com")]
@@ -45,13 +45,6 @@ public class SecurityPolicyTests
     }
 
     [Fact]
-    public void AdministratorRemoteExecutionPoliciesFailClosed()
-    {
-        Assert.False(SecurityPolicy.AllowUnverifiedDirectInstallers);
-        Assert.False(SecurityPolicy.AllowUnverifiedAdministratorTools);
-    }
-
-    [Fact]
     public void ActivationServiceDoesNotPipeRemoteContentIntoPowerShell()
     {
         string source = File.ReadAllText(RepoFile("ReToolbox", "Services", "ActivationService.cs"));
@@ -62,12 +55,38 @@ public class SecurityPolicyTests
     }
 
     [Fact]
-    public void SoftwareInstallerDoesNotShipDirectDownloadExecution()
+    public void SoftwareCatalogUsesSupportedWingetPackagesOnly()
     {
         string source = File.ReadAllText(RepoFile("ReToolbox", "Services", "SoftwareInstallService.cs"));
 
+        Assert.Contains("shinchiro.mpv", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("DownloadUrl =", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("AllowUnverifiedDirectInstallers", source, StringComparison.Ordinal);
         Assert.DoesNotContain("InstallFromUrlAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("DownloadAndRunAsync", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UserFacingSourcesDoNotMarkFeaturesAsDisabled()
+    {
+        string root = Path.GetDirectoryName(RepoFile("ReToolbox", "ReToolbox.csproj"))!;
+        string[] userFacingDirectories = { "Views", "ViewModels", "Services" };
+
+        foreach (string directory in userFacingDirectories)
+        {
+            foreach (string path in Directory.EnumerateFiles(
+                Path.Combine(root, directory),
+                "*.*",
+                SearchOption.AllDirectories))
+            {
+                if (Path.GetExtension(path) is not (".cs" or ".xaml"))
+                {
+                    continue;
+                }
+
+                Assert.DoesNotContain("已禁用", File.ReadAllText(path), StringComparison.Ordinal);
+            }
+        }
     }
 
     private static string RepoFile(params string[] segments)

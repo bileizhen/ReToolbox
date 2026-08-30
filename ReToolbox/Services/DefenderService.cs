@@ -24,7 +24,7 @@ namespace ReToolbox.Services
 
         public string GetDefenderStatusText()
         {
-            return IsDefenderActive() ? "正在保护" : "已禁用或已移除";
+            return IsDefenderActive() ? "正在保护" : "未运行或已移除";
         }
 
         // Downloads the pinned reviewed release, verifies it, and selects the

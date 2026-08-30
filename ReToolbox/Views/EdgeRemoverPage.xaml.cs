@@ -27,17 +27,51 @@ namespace ReToolbox.Views
         {
             if (ViewModel.IsEdgeInstalled)
             {
-                // Uninstall depends on a remote third-party script and is disabled for
-                // administrator-mode supply-chain safety until a verified pinned artifact
-                // is available. Surface a clear warning instead of a broken action.
-                StatusInfoBar.IsOpen = true;
-                StatusInfoBar.Message = "出于管理员权限与供应链安全，第三方 EdgeRemover 卸载已禁用。请等待提供带固定摘要的受信版本。";
-                StatusInfoBar.Severity = InfoBarSeverity.Warning;
-                await Task.CompletedTask;
+                ContentDialog confirmation = new ContentDialog
+                {
+                    XamlRoot = XamlRoot,
+                    Title = "确认卸载 Microsoft Edge",
+                    Content = "此操作会运行经过固定版本与 SHA-256 校验的 EdgeRemover 管理员脚本。卸载 Edge 可能影响依赖它的系统功能，是否继续？",
+                    PrimaryButtonText = "继续卸载",
+                    CloseButtonText = "取消",
+                    DefaultButton = ContentDialogButton.Close
+                };
+                if (await confirmation.ShowAsync() == ContentDialogResult.Primary)
+                {
+                    await RunUninstallAsync();
+                }
             }
             else
             {
                 await RunInstallAsync();
+            }
+        }
+
+        private async Task RunUninstallAsync()
+        {
+            PrimaryActionButton.IsEnabled = false;
+            UninstallProgress.Visibility = Visibility.Visible;
+            StatusInfoBar.IsOpen = true;
+            StatusInfoBar.Message = "正在卸载 Microsoft Edge...";
+            StatusInfoBar.Severity = InfoBarSeverity.Informational;
+
+            try
+            {
+                await ViewModel.UninstallEdgeCommand.ExecuteAsync(null);
+                StatusInfoBar.Message = ViewModel.StatusMessage;
+                StatusInfoBar.Severity = ViewModel.IsEdgeInstalled
+                    ? InfoBarSeverity.Error
+                    : InfoBarSeverity.Success;
+            }
+            catch (Exception ex)
+            {
+                StatusInfoBar.Message = $"Microsoft Edge 卸载失败：{ex.Message}";
+                StatusInfoBar.Severity = InfoBarSeverity.Error;
+            }
+            finally
+            {
+                UninstallProgress.Visibility = Visibility.Collapsed;
+                UpdatePrimaryActionButton();
             }
         }
 
@@ -103,15 +137,11 @@ namespace ReToolbox.Views
 
         private void UpdatePrimaryActionButton()
         {
-            // Edge uninstall depends on a remote third-party script and is disabled until
-            // a verified pinned artifact is available. When Edge is installed we keep the
-            // button visible but disabled so the limitation is discoverable; when Edge is
-            // absent the install (winget) path remains available.
             if (ViewModel.IsEdgeInstalled)
             {
-                PrimaryActionButton.Content = "卸载 Edge（已禁用）";
+                PrimaryActionButton.Content = "卸载 Edge";
                 PrimaryActionButton.Style = (Style)Application.Current.Resources["DefaultButtonStyle"];
-                PrimaryActionButton.IsEnabled = false;
+                PrimaryActionButton.IsEnabled = !ViewModel.IsUninstalling;
             }
             else
             {

@@ -8,8 +8,6 @@ namespace ReToolbox.Services
 {
     public class EdgeRemoverService
     {
-        private const string EdgeRemoverScriptUrl = "https://gh.llkk.cc/https://github.com/he3als/EdgeRemover/releases/download/v1.9.5/RemoveEdge.ps1";
-
         public bool IsEdgeInstalled()
         {
             return !string.IsNullOrWhiteSpace(GetInstalledEdgePath());
@@ -36,14 +34,8 @@ namespace ReToolbox.Services
 
         public async Task<bool> UninstallEdgeAsync(IProgress<string>? progress = null)
         {
-            if (!SecurityPolicy.AllowUnverifiedAdministratorTools)
-            {
-                progress?.Report(
-                    "EdgeRemover 已禁用：缺少固定摘要或可信发布者验证。");
-                return false;
-            }
-
-            progress?.Report("正在通过 EdgeRemover 脚本卸载 Microsoft Edge...");
+            EdgeRemovalScriptRelease release = EdgeRemovalWorkflow.CurrentRelease;
+            string? stagingDirectory = null;
 
             try
             {
@@ -53,12 +45,43 @@ namespace ReToolbox.Services
                     return false;
                 }
 
-                string result = await ExecuteEdgeRemoverScriptAsync("-UninstallEdge -NonInteractive");
+                stagingDirectory = SecureStagingDirectory.Create();
+                string scriptPath = Path.Combine(stagingDirectory, release.FileName);
+                progress?.Report($"正在下载并校验 EdgeRemover {release.Tag}...");
+
+                string result;
+                int exitCode;
+                await using (FileStream downloaded =
+                    await VerifiedArtifactDownloader.DownloadAndOpenAsync(
+                        release.DownloadUri,
+                        scriptPath,
+                        release.Size,
+                        release.Sha256,
+                        progress))
+                {
+                    progress?.Report("校验通过，正在卸载 Microsoft Edge...");
+                    using Process process = CreateRemovalProcess(
+                        scriptPath,
+                        stagingDirectory,
+                        release.Arguments);
+                    if (!process.Start())
+                    {
+                        progress?.Report("无法启动 EdgeRemover");
+                        return false;
+                    }
+
+                    Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                    Task<string> standardError = process.StandardError.ReadToEndAsync();
+                    await process.WaitForExitAsync();
+                    result = (await standardOutput) + Environment.NewLine + await standardError;
+                    exitCode = process.ExitCode;
+                }
+
                 ReportScriptOutput(result, progress);
 
-                if (ContainsKnownFailure(result))
+                if (exitCode != 0 || ContainsKnownFailure(result))
                 {
-                    progress?.Report("EdgeRemover 脚本卸载失败");
+                    progress?.Report($"EdgeRemover 卸载失败（退出代码：{exitCode}）");
                     return false;
                 }
 
@@ -70,6 +93,20 @@ namespace ReToolbox.Services
             {
                 progress?.Report($"卸载失败: {ex.Message}");
                 return false;
+            }
+            finally
+            {
+                try
+                {
+                    if (stagingDirectory is not null && Directory.Exists(stagingDirectory))
+                    {
+                        Directory.Delete(stagingDirectory, true);
+                    }
+                }
+                catch
+                {
+                    // Best-effort cleanup of the verified script.
+                }
             }
         }
 
@@ -134,22 +171,34 @@ namespace ReToolbox.Services
             }
         }
 
-        private static async Task<string> ExecuteEdgeRemoverScriptAsync(string scriptArguments)
+        private static Process CreateRemovalProcess(
+            string scriptPath,
+            string workingDirectory,
+            string[] arguments)
         {
-            return await Task.Run(() =>
+            Process process = new Process();
+            process.StartInfo.FileName = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe");
+            process.StartInfo.WorkingDirectory = workingDirectory;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.ArgumentList.Add("-NoProfile");
+            process.StartInfo.ArgumentList.Add("-NonInteractive");
+            process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
+            process.StartInfo.ArgumentList.Add("Bypass");
+            process.StartInfo.ArgumentList.Add("-File");
+            process.StartInfo.ArgumentList.Add(scriptPath);
+            foreach (string argument in arguments)
             {
-                string command =
-                    "$ProgressPreference='SilentlyContinue'; " +
-                    "[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; " +
-                    "$temp = Join-Path $env:TEMP ([guid]::NewGuid().ToString()); " +
-                    "New-Item -Path $temp -ItemType Directory -Force | Out-Null; " +
-                    "$file = Join-Path $temp 'RemoveEdge.ps1'; " +
-                    $"Invoke-WebRequest -Uri '{EdgeRemoverScriptUrl}' -OutFile $file -UseBasicParsing; " +
-                    $"$output = & $file {scriptArguments} 6>&1 | Out-String -Width 4096; " +
-                    "$output";
+                process.StartInfo.ArgumentList.Add(argument);
+            }
 
-                return CommandHelper.RunPowerShellCommand(command, true);
-            });
+            return process;
         }
 
         private static bool ContainsKnownFailure(string result)

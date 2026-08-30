@@ -319,7 +319,7 @@ No ads, no bundles — focused on getting things done.
 
 **Security note**
 
-Normal software installation stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Windows activation downloads `MAS_AIO.cmd` only from the pinned MAS 3.11 commit, verifies its size and SHA-256, and runs `/HWID-NoEditionChange` so the Windows edition is not changed automatically. Defender Remover likewise uses a pinned upstream tag, digest verification, and protected staging. Other administrator-level remote execution paths remain disabled until independently trusted pinned hashes or publisher verification can be provided.
+Normal software installation stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Windows activation downloads `MAS_AIO.cmd` only from the pinned MAS 3.11 commit, verifies its size and SHA-256, and runs `/HWID-NoEditionChange` so the Windows edition is not changed automatically. Defender Remover and EdgeRemover likewise use pinned upstream releases, digest verification, and protected staging. Unverified direct installers are not included in the software catalog.
 
 **🚀 One-Click Build**
 
