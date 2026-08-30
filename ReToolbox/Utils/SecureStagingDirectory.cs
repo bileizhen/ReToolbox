@@ -13,7 +13,7 @@ namespace ReToolbox.Utils
                 Environment.SpecialFolder.CommonApplicationData);
             string path = Path.Combine(
                 commonApplicationData,
-                $"ReToolbox-DefenderRemoval-{Guid.NewGuid():N}");
+                $"ReToolbox-SecureStaging-{Guid.NewGuid():N}");
 
             SecurityIdentifier administrators = new SecurityIdentifier(
                 WellKnownSidType.BuiltinAdministratorsSid,

@@ -5,6 +5,8 @@ namespace ReToolbox.Tests;
 
 public class ActivationWorkflowTests
 {
+    private const string WindowsApplicationId = "55c92734-d682-4d71-983e-d6ec3f16059f";
+
     [Fact]
     public void PinsReviewedMasHwidScript()
     {
@@ -26,17 +28,42 @@ public class ActivationWorkflowTests
     public void ActivationEntryUsesTheVerifiedWorkflowAndIsEnabled()
     {
         string service = File.ReadAllText(RepoFile("ReToolbox", "Services", "ActivationService.cs"));
+        string workflow = File.ReadAllText(RepoFile("ReToolbox", "Services", "ActivationWorkflow.cs"));
+        string downloader = File.ReadAllText(RepoFile("ReToolbox", "Utils", "VerifiedArtifactDownloader.cs"));
         string page = File.ReadAllText(RepoFile("ReToolbox", "Views", "ActivationPage.xaml"));
         string pageCode = File.ReadAllText(RepoFile("ReToolbox", "Views", "ActivationPage.xaml.cs"));
 
         Assert.Contains("ActivationWorkflow.CurrentRelease", service, StringComparison.Ordinal);
-        Assert.Contains("ArtifactIntegrity.HasExpectedSha256Async", service, StringComparison.Ordinal);
+        Assert.Contains("VerifiedArtifactDownloader.DownloadAndOpenAsync", service, StringComparison.Ordinal);
+        Assert.Contains("ArtifactIntegrity.HasExpectedSha256Async", downloader, StringComparison.Ordinal);
         Assert.Contains("SecureStagingDirectory.Create", service, StringComparison.Ordinal);
+        Assert.Contains("RedirectStandardOutput = true", service, StringComparison.Ordinal);
+        Assert.Contains("DiagnosticLogPath", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("ActivationOutcome.AwaitingVerification", service, StringComparison.Ordinal);
         Assert.DoesNotContain("AllowRemoteActivationScripts", service, StringComparison.Ordinal);
         Assert.DoesNotContain("（已禁用）", page, StringComparison.Ordinal);
         Assert.DoesNotContain("IsEnabled=\"False\"", page, StringComparison.Ordinal);
         Assert.Contains("ActivateCommand.ExecuteAsync", pageCode, StringComparison.Ordinal);
+        Assert.Contains("OpenDiagnosticLog_Click", pageCode, StringComparison.Ordinal);
         Assert.DoesNotContain("远程激活脚本执行已禁用", pageCode, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnlyLicensedPrimaryWindowsProductsCountAsActivated()
+    {
+        WindowsLicenseSnapshot[] licenses =
+        {
+            new(WindowsApplicationId, null, "WINDOWS-KEY", 3),
+            new("0ff1ce15-a989-479d-af46-f275c6370663", null, "OFFICE-KEY", 1),
+            new(WindowsApplicationId, "parent-license", "ADDON-KEY", 1)
+        };
+
+        Assert.False(ActivationWorkflow.IsWindowsActivated(licenses));
+
+        licenses = licenses.Append(
+            new WindowsLicenseSnapshot(WindowsApplicationId, null, "WINDOWS-KEY", 1)).ToArray();
+
+        Assert.True(ActivationWorkflow.IsWindowsActivated(licenses));
     }
 
     private static string RepoFile(params string[] segments)

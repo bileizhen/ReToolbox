@@ -97,6 +97,11 @@
                             Click="Activate_Click"
                             Content="激活 Windows"
                             Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            x:Name="OpenDiagnosticLogButton"
+                            Click="OpenDiagnosticLog_Click"
+                            Content="打开诊断日志"
+                            Visibility="Collapsed" />
                         <Button Click="RefreshStatus_Click" Content="刷新状态" />
                     </StackPanel>
                 </controls:SettingsCard>

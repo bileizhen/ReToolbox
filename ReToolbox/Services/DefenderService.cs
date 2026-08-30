@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Net.Http;
 using System.Threading.Tasks;
 using ReToolbox.Utils;
 
@@ -46,30 +45,15 @@ namespace ReToolbox.Services
                 string archivePath = Path.Combine(stagingDirectory, release.FileName);
                 string payloadDirectory = Path.Combine(stagingDirectory, "payload");
 
-                using HttpClient client = new HttpClient
-                {
-                    Timeout = TimeSpan.FromMinutes(2)
-                };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("ReToolbox/1.4");
-
-                await DownloadWithRetryAsync(client, release, archivePath, progress);
-
                 progress?.Report("正在校验并解压 Defender Remover 源码包...");
-                await using (FileStream downloaded = new FileStream(
-                    archivePath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read))
+                await using (FileStream downloaded =
+                    await VerifiedArtifactDownloader.DownloadAndOpenAsync(
+                        release.DownloadUri,
+                        archivePath,
+                        release.Size,
+                        release.Sha256,
+                        progress))
                 {
-                    if (downloaded.Length != release.Size ||
-                        !await ArtifactIntegrity.HasExpectedSha256Async(
-                            downloaded,
-                            release.Sha256))
-                    {
-                        return Failure("安全校验失败：下载文件的大小或 SHA-256 与固定版本不匹配，已阻止执行");
-                    }
-
-                    downloaded.Position = 0;
                     Directory.CreateDirectory(payloadDirectory);
                     using ZipArchive archive = new ZipArchive(
                         downloaded,
@@ -153,42 +137,6 @@ namespace ReToolbox.Services
                 return new DefenderRemovalResult(
                     DefenderRemovalOutcome.Failed,
                     message);
-            }
-        }
-
-        private static async Task DownloadWithRetryAsync(
-            HttpClient client,
-            DefenderRemoverRelease release,
-            string localPath,
-            IProgress<string>? progress)
-        {
-            const int maxAttempts = 3;
-
-            for (int attempt = 1; attempt <= maxAttempts; attempt++)
-            {
-                try
-                {
-                    using HttpResponseMessage response = await client.GetAsync(
-                        release.DownloadUri,
-                        HttpCompletionOption.ResponseHeadersRead);
-                    response.EnsureSuccessStatusCode();
-
-                    await using Stream remote = await response.Content.ReadAsStreamAsync();
-                    await using FileStream local = new FileStream(
-                        localPath,
-                        FileMode.Create,
-                        FileAccess.Write,
-                        FileShare.None,
-                        81920,
-                        true);
-                    await remote.CopyToAsync(local);
-                    return;
-                }
-                catch (Exception) when (attempt < maxAttempts)
-                {
-                    progress?.Report($"下载失败，正在重试（{attempt}/{maxAttempts}）...");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt));
-                }
             }
         }
 

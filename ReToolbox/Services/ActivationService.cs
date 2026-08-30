@@ -1,9 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
-using System.Net.Http;
 using System.Threading.Tasks;
 using ReToolbox.Utils;
 
@@ -12,17 +12,17 @@ namespace ReToolbox.Services
     public class ActivationService
     {
         // LicenseStatus values from SoftwareLicensingProduct:
-        //   0 = Unlicensed, 1 = Licensed (permanently activated),
-        //   2 = OOB grace, 3 = Out-of-box grace / KMS activated,
+        //   0 = Unlicensed, 1 = Licensed,
+        //   2 = OOB grace, 3 = OOT grace,
         //   4 = Non-genuine grace, 5 = Notification (not activated),
         //   6 = Extended grace expired.
-        // Windows is considered activated when a product holding a partial
-        // product key reports status 1 (permanent) or 3 (KMS).
+        // Only the primary Windows product with status 1 is activated. Grace
+        // states and dependent add-on licenses must not count as activation.
         public bool IsActivated()
         {
             try
             {
-                return GetWindowsLicenseStatus() is 1 or 3;
+                return ActivationWorkflow.IsWindowsActivated(GetWindowsLicenses());
             }
             catch
             {
@@ -30,28 +30,47 @@ namespace ReToolbox.Services
             }
         }
 
-        // Returns the LicenseStatus of the active Windows product, or null if it
-        // cannot be determined. Uses WMI instead of slmgr.vbs because slmgr.vbs
-        // pops up a message box (no stdout) in a non-interactive session.
-        private static int? GetWindowsLicenseStatus()
+        private static IReadOnlyList<WindowsLicenseSnapshot> GetWindowsLicenses()
         {
             using var searcher = new ManagementObjectSearcher(
                 "root\\CIMv2",
-                "SELECT LicenseStatus, PartialProductKey, Name FROM SoftwareLicensingProduct WHERE PartialProductKey IS NOT NULL");
+                "SELECT ApplicationID, LicenseDependsOn, LicenseStatus, PartialProductKey " +
+                "FROM SoftwareLicensingProduct " +
+                $"WHERE ApplicationID = '{ActivationWorkflow.WindowsApplicationId}' " +
+                "AND PartialProductKey IS NOT NULL");
 
+            List<WindowsLicenseSnapshot> licenses = new List<WindowsLicenseSnapshot>();
             foreach (ManagementObject item in searcher.Get())
             {
-                var name = item["Name"]?.ToString();
-                // Skip Office and other non-Windows products.
-                if (string.IsNullOrWhiteSpace(name) ||
-                    name.Contains("Office", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
                 if (int.TryParse(item["LicenseStatus"]?.ToString(), out int status))
-                    return status;
+                {
+                    licenses.Add(new WindowsLicenseSnapshot(
+                        item["ApplicationID"]?.ToString() ?? string.Empty,
+                        item["LicenseDependsOn"]?.ToString(),
+                        item["PartialProductKey"]?.ToString(),
+                        status));
+                }
             }
 
-            return null;
+            return licenses;
+        }
+
+        // Returns the most relevant primary Windows LicenseStatus, or null when
+        // it cannot be determined. WMI avoids the interactive slmgr.vbs dialog.
+        private static int? GetWindowsLicenseStatus()
+        {
+            WindowsLicenseSnapshot[] primaryLicenses = GetWindowsLicenses()
+                .Where(license =>
+                    string.IsNullOrWhiteSpace(license.LicenseDependsOn) &&
+                    !string.IsNullOrWhiteSpace(license.PartialProductKey))
+                .ToArray();
+
+            if (ActivationWorkflow.IsWindowsActivated(primaryLicenses))
+            {
+                return 1;
+            }
+
+            return primaryLicenses.Select(license => (int?)license.LicenseStatus).FirstOrDefault();
         }
 
         public string GetActivationStatus()
@@ -97,7 +116,7 @@ namespace ReToolbox.Services
                 return status switch
                 {
                     1 => "Windows 已使用数字许可证永久激活。",
-                    3 => "Windows 已激活(KMS)。",
+                    3 => "Windows 处于 OOT 宽限期，尚未正式激活。",
                     2 => "Windows 处于 OOB 宽限期内,尚未永久激活。",
                     4 => "Windows 处于非正版宽限期。",
                     5 => "Windows 当前未激活。",
@@ -122,6 +141,7 @@ namespace ReToolbox.Services
 
             ActivationScriptRelease release = ActivationWorkflow.CurrentRelease;
             string? stagingDirectory = null;
+            string? diagnosticLogPath = null;
 
             try
             {
@@ -129,18 +149,13 @@ namespace ReToolbox.Services
                 string scriptPath = Path.Combine(stagingDirectory, release.FileName);
 
                 progress?.Report($"正在下载并校验 MAS {release.Tag}...");
-                using HttpClient client = new HttpClient
-                {
-                    Timeout = TimeSpan.FromMinutes(2)
-                };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("ReToolbox/1.4");
-                await DownloadWithRetryAsync(client, release, scriptPath, progress);
-
-                await using (FileStream downloaded = new FileStream(
-                    scriptPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read))
+                await using (FileStream downloaded =
+                    await VerifiedArtifactDownloader.DownloadAndOpenAsync(
+                        release.DownloadUri,
+                        scriptPath,
+                        release.Size,
+                        release.Sha256,
+                        progress))
                 {
                     if (downloaded.Length != release.Size ||
                         !await ArtifactIntegrity.HasExpectedSha256Async(
@@ -157,7 +172,9 @@ namespace ReToolbox.Services
                         "cmd.exe");
                     process.StartInfo.WorkingDirectory = stagingDirectory;
                     process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = false;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
                     process.StartInfo.ArgumentList.Add("/d");
                     process.StartInfo.ArgumentList.Add("/c");
                     process.StartInfo.ArgumentList.Add(scriptPath);
@@ -168,10 +185,23 @@ namespace ReToolbox.Services
                         return Failure("无法启动 MAS 激活脚本");
                     }
 
+                    Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                    Task<string> standardError = process.StandardError.ReadToEndAsync();
                     await process.WaitForExitAsync();
+                    string output = await standardOutput;
+                    string error = await standardError;
+                    diagnosticLogPath = await TryWriteDiagnosticLogAsync(
+                        release,
+                        output,
+                        error,
+                        process.ExitCode,
+                        progress);
+
                     if (process.ExitCode != 0)
                     {
-                        return Failure($"MAS 激活脚本已退出，代码：{process.ExitCode}");
+                        return Failure(
+                            $"MAS 激活脚本已退出，代码：{process.ExitCode}。" +
+                            FormatLogHint(diagnosticLogPath));
                     }
                 }
 
@@ -181,7 +211,10 @@ namespace ReToolbox.Services
                     {
                         const string activated = "Windows 激活已验证成功";
                         progress?.Report(activated);
-                        return new ActivationResult(ActivationOutcome.Activated, activated);
+                        return new ActivationResult(
+                            ActivationOutcome.Activated,
+                            activated,
+                            diagnosticLogPath);
                     }
 
                     if (attempt < 2)
@@ -190,12 +223,10 @@ namespace ReToolbox.Services
                     }
                 }
 
-                const string awaitingVerification =
-                    "MAS 脚本已执行，但尚未检测到激活状态；请稍后刷新状态或查看脚本窗口中的结果";
-                progress?.Report(awaitingVerification);
-                return new ActivationResult(
-                    ActivationOutcome.AwaitingVerification,
-                    awaitingVerification);
+                string notActivated =
+                    "MAS 脚本已执行，但 Windows 主许可证仍未处于 Licensed 状态。" +
+                    FormatLogHint(diagnosticLogPath);
+                return Failure(notActivated);
             }
             catch (Exception ex)
             {
@@ -219,44 +250,53 @@ namespace ReToolbox.Services
             ActivationResult Failure(string message)
             {
                 progress?.Report(message);
-                return new ActivationResult(ActivationOutcome.Failed, message);
+                return new ActivationResult(
+                    ActivationOutcome.Failed,
+                    message,
+                    diagnosticLogPath);
             }
         }
 
-        private static async Task DownloadWithRetryAsync(
-            HttpClient client,
+        private static async Task<string?> TryWriteDiagnosticLogAsync(
             ActivationScriptRelease release,
-            string localPath,
+            string standardOutput,
+            string standardError,
+            int exitCode,
             IProgress<string>? progress)
         {
-            const int maxAttempts = 3;
-
-            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            try
             {
-                try
-                {
-                    using HttpResponseMessage response = await client.GetAsync(
-                        release.DownloadUri,
-                        HttpCompletionOption.ResponseHeadersRead);
-                    response.EnsureSuccessStatusCode();
-
-                    await using Stream remote = await response.Content.ReadAsStreamAsync();
-                    await using FileStream local = new FileStream(
-                        localPath,
-                        FileMode.Create,
-                        FileAccess.Write,
-                        FileShare.None,
-                        81920,
-                        true);
-                    await remote.CopyToAsync(local);
-                    return;
-                }
-                catch (Exception) when (attempt < maxAttempts)
-                {
-                    progress?.Report($"下载失败，正在重试（{attempt}/{maxAttempts}）...");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt));
-                }
+                string logDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ReToolbox",
+                    "Logs");
+                Directory.CreateDirectory(logDirectory);
+                string logPath = Path.Combine(
+                    logDirectory,
+                    $"activation-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.log");
+                string content =
+                    $"MAS release: {release.Tag}{Environment.NewLine}" +
+                    $"MAS commit: {release.Commit}{Environment.NewLine}" +
+                    $"Switch: {release.ActivationSwitch}{Environment.NewLine}" +
+                    $"Exit code: {exitCode}{Environment.NewLine}" +
+                    $"Timestamp: {DateTimeOffset.Now:O}{Environment.NewLine}" +
+                    $"{Environment.NewLine}--- stdout ---{Environment.NewLine}{standardOutput}" +
+                    $"{Environment.NewLine}--- stderr ---{Environment.NewLine}{standardError}";
+                await File.WriteAllTextAsync(logPath, content);
+                return logPath;
             }
+            catch (Exception ex)
+            {
+                progress?.Report($"无法保存 MAS 诊断日志：{ex.Message}");
+                return null;
+            }
+        }
+
+        private static string FormatLogHint(string? diagnosticLogPath)
+        {
+            return string.IsNullOrWhiteSpace(diagnosticLogPath)
+                ? "请稍后刷新激活状态。"
+                : $"请查看诊断日志：{diagnosticLogPath}";
         }
 
         private static string GetEditionDisplayName(string? editionId)

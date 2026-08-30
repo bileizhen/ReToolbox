@@ -39,6 +39,8 @@ namespace ReToolbox.ViewModels
 
         public ActivationOutcome LastActivationOutcome { get; private set; }
 
+        public string? LastDiagnosticLogPath { get; private set; }
+
         public ActivationPageViewModel(ActivationService activationService)
         {
             _activationService = activationService;
@@ -75,6 +77,7 @@ namespace ReToolbox.ViewModels
         {
             IsActivating = true;
             LastActivationOutcome = ActivationOutcome.None;
+            LastDiagnosticLogPath = null;
             StatusMessage = "正在启动激活脚本...";
 
             var progress = new Progress<string>(msg => StatusMessage = msg);
@@ -83,6 +86,7 @@ namespace ReToolbox.ViewModels
             {
                 ActivationResult result = await _activationService.ActivateAsync(progress);
                 LastActivationOutcome = result.Outcome;
+                LastDiagnosticLogPath = result.DiagnosticLogPath;
                 StatusMessage = result.Message;
                 RefreshStatus();
             }

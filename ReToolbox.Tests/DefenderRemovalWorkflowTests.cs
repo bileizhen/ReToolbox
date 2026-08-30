@@ -57,8 +57,10 @@ public class DefenderRemovalWorkflowTests
         string service = File.ReadAllText(RepoFile("ReToolbox", "Services", "DefenderService.cs"));
         string page = File.ReadAllText(RepoFile("ReToolbox", "Views", "DefenderPage.xaml.cs"));
         string staging = File.ReadAllText(RepoFile("ReToolbox", "Utils", "SecureStagingDirectory.cs"));
+        string downloader = File.ReadAllText(RepoFile("ReToolbox", "Utils", "VerifiedArtifactDownloader.cs"));
 
-        Assert.Contains("ArtifactIntegrity.HasExpectedSha256Async", service, StringComparison.Ordinal);
+        Assert.Contains("VerifiedArtifactDownloader.DownloadAndOpenAsync", service, StringComparison.Ordinal);
+        Assert.Contains("ArtifactIntegrity.HasExpectedSha256Async", downloader, StringComparison.Ordinal);
         Assert.Contains("SecureStagingDirectory.Create", service, StringComparison.Ordinal);
         Assert.Contains("new ZipArchive", service, StringComparison.Ordinal);
         Assert.Contains("\"Script_Run.ps1\"", service, StringComparison.Ordinal);

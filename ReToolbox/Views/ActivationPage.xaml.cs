@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -60,10 +62,13 @@ namespace ReToolbox.Views
                 StatusInfoBar.Severity = ViewModel.LastActivationOutcome switch
                 {
                     ActivationOutcome.Activated => InfoBarSeverity.Success,
-                    ActivationOutcome.AwaitingVerification => InfoBarSeverity.Informational,
                     ActivationOutcome.Failed => InfoBarSeverity.Error,
                     _ => InfoBarSeverity.Warning
                 };
+                OpenDiagnosticLogButton.Visibility =
+                    string.IsNullOrWhiteSpace(ViewModel.LastDiagnosticLogPath)
+                        ? Visibility.Collapsed
+                        : Visibility.Visible;
             }
             catch (Exception ex)
             {
@@ -76,6 +81,24 @@ namespace ReToolbox.Views
                 _isActivationFlowOpen = false;
                 ActivateButton.IsEnabled = !ViewModel.IsActivating;
             }
+        }
+
+        private void OpenDiagnosticLog_Click(object sender, RoutedEventArgs e)
+        {
+            string? logPath = ViewModel.LastDiagnosticLogPath;
+            if (string.IsNullOrWhiteSpace(logPath) || !File.Exists(logPath))
+            {
+                StatusInfoBar.IsOpen = true;
+                StatusInfoBar.Message = "诊断日志不存在或已被移除";
+                StatusInfoBar.Severity = InfoBarSeverity.Warning;
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = logPath,
+                UseShellExecute = true
+            });
         }
 
         private void RefreshStatus_Click(object sender, RoutedEventArgs e)
