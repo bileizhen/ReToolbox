@@ -30,12 +30,12 @@ namespace ReToolbox.Services
             CancellationToken cancellationToken = default)
         {
             progress?.Report(LogEntry.Normal($"正在安装 {software.Name}..."));
-            downloadProgress?.Report(0);
 
             SoftwareInstallResult result;
 
             if (!string.IsNullOrWhiteSpace(software.WingetId))
             {
+                downloadProgress?.Report(0);
                 bool success = await InstallFromWingetAsync(
                     software,
                     progress,
