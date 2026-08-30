@@ -150,6 +150,13 @@ namespace ReToolbox.Views
                 return InfoBarSeverity.Error;
             }
 
+            if (message.Contains("已恢复", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("已清除", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("已允许", StringComparison.OrdinalIgnoreCase))
+            {
+                return InfoBarSeverity.Success;
+            }
+
             if (message.Contains("暂停", StringComparison.OrdinalIgnoreCase) ||
                 message.Contains("阻止", StringComparison.OrdinalIgnoreCase) ||
                 message.Contains("被限制", StringComparison.OrdinalIgnoreCase))
