@@ -46,6 +46,7 @@ namespace ReToolbox.Views
                     var card = new CommunityToolkit.WinUI.Controls.SettingsCard
                     {
                         Header = item.Name,
+                        Description = $"{item.Description} · 来源：{item.DistributionLabel}",
                         DataContext = item,
                         HorizontalContentAlignment = HorizontalAlignment.Right
                     };
@@ -84,7 +85,8 @@ namespace ReToolbox.Views
 
         private static IconElement CreateHeaderIcon(SoftwareItem item)
         {
-            if (!string.IsNullOrWhiteSpace(item.WingetId))
+            if (!string.IsNullOrWhiteSpace(item.WingetId) &&
+                item.WingetSource == "winget")
             {
                 return new BitmapIcon
                 {
@@ -147,7 +149,7 @@ namespace ReToolbox.Views
             try
             {
                 await ViewModel.InstallSelectedCommand.ExecuteAsync(null);
-                InstallProgressDialog.Title = "安装完成";
+                InstallProgressDialog.Title = ViewModel.BatchResultTitle;
             }
             catch
             {

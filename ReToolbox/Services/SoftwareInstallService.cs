@@ -23,7 +23,7 @@ namespace ReToolbox.Services
 
         public List<SoftwareItem> GetSoftwareList() => _softwareItems;
 
-        public async Task<bool> InstallSoftwareAsync(
+        public async Task<SoftwareInstallResult> InstallSoftwareAsync(
             SoftwareItem software,
             IProgress<LogEntry>? progress = null,
             IProgress<int>? downloadProgress = null,
@@ -32,29 +32,50 @@ namespace ReToolbox.Services
             progress?.Report(LogEntry.Normal($"正在安装 {software.Name}..."));
             downloadProgress?.Report(0);
 
-            bool success;
+            SoftwareInstallResult result;
 
             if (!string.IsNullOrWhiteSpace(software.WingetId))
             {
-                success = await InstallFromWingetAsync(software, progress, downloadProgress, cancellationToken);
+                bool success = await InstallFromWingetAsync(
+                    software,
+                    progress,
+                    downloadProgress,
+                    cancellationToken);
+                result = success
+                    ? new SoftwareInstallResult(
+                        SoftwareInstallOutcome.Installed,
+                        $"{software.Name} 安装完成")
+                    : new SoftwareInstallResult(
+                        SoftwareInstallOutcome.Failed,
+                        $"{software.Name} 安装失败");
+            }
+            else if (software.OfficialPageUri is not null)
+            {
+                result = OpenOfficialInstallPage(software);
             }
             else
             {
-                success = false;
+                result = new SoftwareInstallResult(
+                    SoftwareInstallOutcome.Failed,
+                    $"{software.Name} 没有可用的安装来源");
             }
 
-            if (success)
+            if (result.Outcome == SoftwareInstallOutcome.Installed)
             {
                 software.IsInstalled = true;
                 software.InstallStatus = "已安装";
+            }
+            else if (result.Outcome == SoftwareInstallOutcome.ManualActionRequired)
+            {
+                software.InstallStatus = "等待手动安装";
             }
             else
             {
                 software.InstallStatus = "安装失败";
             }
 
-            progress?.Report(LogEntry.Normal(success ? $"{software.Name} 安装完成" : $"{software.Name} 安装失败"));
-            return success;
+            progress?.Report(LogEntry.Normal(result.Message));
+            return result;
         }
 
         private async Task<bool> InstallFromWingetAsync(
@@ -78,7 +99,11 @@ namespace ReToolbox.Services
             // unavailable we fall back to a redirected process, which still installs
             // fine (just without a live progress bar).
             Encoding encoding = Encoding.GetEncoding(Encoding.Default.CodePage == 936 ? 936 : 65001);
-            string wingetCmd = $"winget install --id {software.WingetId} --accept-package-agreements --accept-source-agreements --silent --disable-interactivity";
+            IReadOnlyList<string> wingetArguments =
+                SoftwareCatalog.BuildWingetInstallArguments(
+                    software.WingetId,
+                    software.WingetSource);
+            string wingetCmd = "winget " + string.Join(' ', wingetArguments);
 
             var output = new StringBuilder();
             int lastPercent = -1;
@@ -137,6 +162,7 @@ namespace ReToolbox.Services
                 output.Clear();
                 exitCode = await RunWingetWithRedirectAsync(
                     software.WingetId,
+                    software.WingetSource,
                     encoding,
                     OnLine,
                     timeoutCts.Token).ConfigureAwait(false);
@@ -149,7 +175,7 @@ namespace ReToolbox.Services
                 return false;
             }
 
-            return CheckIfInstalled(software.WingetId);
+            return CheckIfInstalled(software.WingetId, software.WingetSource);
         }
 
         // Fallback when the pseudo console cannot be created: classic redirected
@@ -157,6 +183,7 @@ namespace ReToolbox.Services
         // progress bar won't be live, but installation completes normally.
         private async Task<int> RunWingetWithRedirectAsync(
             string wingetId,
+            string wingetSource,
             Encoding encoding,
             Action<string> onLine,
             CancellationToken cancellationToken)
@@ -171,7 +198,7 @@ namespace ReToolbox.Services
                 StandardOutputEncoding = encoding,
                 StandardErrorEncoding = encoding
             };
-            AddWingetInstallArguments(psi, wingetId);
+            AddWingetInstallArguments(psi, wingetId, wingetSource);
 
             using Process process = new() { StartInfo = psi };
             process.Start();
@@ -193,16 +220,17 @@ namespace ReToolbox.Services
             return process.ExitCode;
         }
 
-        private static void AddWingetInstallArguments(ProcessStartInfo psi, string wingetId)
+        private static void AddWingetInstallArguments(
+            ProcessStartInfo psi,
+            string wingetId,
+            string wingetSource)
         {
-            psi.ArgumentList.Add("install");
-            psi.ArgumentList.Add("--id");
-            psi.ArgumentList.Add(wingetId);
-            psi.ArgumentList.Add("--exact");
-            psi.ArgumentList.Add("--accept-package-agreements");
-            psi.ArgumentList.Add("--accept-source-agreements");
-            psi.ArgumentList.Add("--silent");
-            psi.ArgumentList.Add("--disable-interactivity");
+            foreach (string argument in SoftwareCatalog.BuildWingetInstallArguments(
+                wingetId,
+                wingetSource))
+            {
+                psi.ArgumentList.Add(argument);
+            }
         }
 
         private static void TryKill(Process process)
@@ -344,7 +372,7 @@ namespace ReToolbox.Services
             return InputValidation.IsValidWingetId(wingetId);
         }
 
-        public bool CheckIfInstalled(string wingetId)
+        public bool CheckIfInstalled(string wingetId, string wingetSource = "winget")
         {
             if (!IsValidWingetId(wingetId))
             {
@@ -365,6 +393,8 @@ namespace ReToolbox.Services
                 psi.ArgumentList.Add("--id");
                 psi.ArgumentList.Add(wingetId);
                 psi.ArgumentList.Add("--exact");
+                psi.ArgumentList.Add("--source");
+                psi.ArgumentList.Add(wingetSource);
                 psi.ArgumentList.Add("--accept-source-agreements");
 
                 using Process process = Process.Start(psi)!;
@@ -378,9 +408,44 @@ namespace ReToolbox.Services
             }
         }
 
+        private static SoftwareInstallResult OpenOfficialInstallPage(
+            SoftwareItem software)
+        {
+            Uri pageUri = software.OfficialPageUri!;
+            if (!SoftwareCatalog.IsApprovedOfficialPage(pageUri))
+            {
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.Failed,
+                    $"{software.Name} 的官方网站地址未通过白名单校验");
+            }
+
+            try
+            {
+                string explorerPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                    "explorer.exe");
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = explorerPath,
+                    UseShellExecute = false
+                };
+                startInfo.ArgumentList.Add(pageUri.AbsoluteUri);
+                Process.Start(startInfo);
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.ManualActionRequired,
+                    $"已打开 {software.Name} 官方页面，请根据地区可用性手动完成安装");
+            }
+            catch (Exception ex)
+            {
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.Failed,
+                    $"无法打开 {software.Name} 官方页面：{ex.Message}");
+            }
+        }
+
         private List<SoftwareItem> GetDefaultSoftwareList()
         {
-            return new List<SoftwareItem>
+            List<SoftwareItem> items = new List<SoftwareItem>
             {
                 new() { Name = "Google Chrome", WingetId = "Google.Chrome", Category = "浏览器", Description = "Google 网页浏览器", IconGlyph = "\uE774" },
                 new() { Name = "Mozilla Firefox", WingetId = "Mozilla.Firefox", Category = "浏览器", Description = "Firefox 网页浏览器", IconGlyph = "\uE774" },
@@ -403,6 +468,18 @@ namespace ReToolbox.Services
                 new() { Name = "Internet Download Manager", WingetId = "Tonec.InternetDownloadManager", Category = "下载工具", Description = "下载加速器", IconGlyph = "\uE896" },
                 new() { Name = "GeForce Experience", WingetId = "Nvidia.GeForceExperience", Category = "驱动", Description = "NVIDIA 驱动管理", IconGlyph = "\uE968" },
             };
+
+            items.AddRange(SoftwareCatalog.Entries.Select(entry => new SoftwareItem
+            {
+                Name = entry.Name,
+                WingetId = entry.WingetId,
+                WingetSource = entry.WingetSource,
+                OfficialPageUri = entry.OfficialPageUri,
+                Category = entry.Category,
+                Description = entry.Description,
+                IconGlyph = entry.IconGlyph
+            }));
+            return items;
         }
     }
 }

@@ -36,6 +36,8 @@ namespace ReToolbox.ViewModels
         [ObservableProperty]
         private bool _isDownloading;
 
+        public string BatchResultTitle { get; private set; } = "安装完成";
+
         public SoftwarePageViewModel(SoftwareInstallService installService)
         {
             _installService = installService;
@@ -69,8 +71,12 @@ namespace ReToolbox.ViewModels
             OverallProgress = 0;
             DownloadProgress = 0;
             IsDownloading = false;
+            BatchResultTitle = "正在安装软件";
 
             int completed = 0;
+            int installed = 0;
+            int manualActionRequired = 0;
+            int failed = 0;
             int total = selected.Count;
 
             try
@@ -101,19 +107,41 @@ namespace ReToolbox.ViewModels
                         IsDownloading = true;
                     });
 
-                    await _installService.InstallSoftwareAsync(item, log, download, cancellationToken);
+                    SoftwareInstallResult result = await _installService.InstallSoftwareAsync(
+                        item,
+                        log,
+                        download,
+                        cancellationToken);
+                    switch (result.Outcome)
+                    {
+                        case SoftwareInstallOutcome.Installed:
+                            installed++;
+                            break;
+                        case SoftwareInstallOutcome.ManualActionRequired:
+                            manualActionRequired++;
+                            break;
+                        default:
+                            failed++;
+                            break;
+                    }
 
                     completed++;
                     OverallProgress = completed * 100 / total;
                     IsDownloading = false;
                 }
 
-                CurrentItemText = $"全部完成（共 {total} 项）";
+                CurrentItemText = $"处理完成：已安装 {installed} 项，需手动操作 {manualActionRequired} 项，失败 {failed} 项";
+                BatchResultTitle = failed > 0
+                    ? "部分软件安装失败"
+                    : manualActionRequired > 0
+                        ? "请继续完成手动安装"
+                        : "安装完成";
             }
             catch (OperationCanceledException)
             {
                 InstallLogs.Add($"[{DateTime.Now:HH:mm:ss}] 安装已取消");
                 CurrentItemText = "安装已取消";
+                BatchResultTitle = "安装已取消";
             }
             finally
             {
