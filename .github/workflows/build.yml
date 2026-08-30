@@ -16,7 +16,7 @@ jobs:
 
       - name: Restore
         shell: pwsh
-        run: msbuild ReToolbox.slnx -t:Restore -p:Platform=x64 -v:minimal
+        run: dotnet msbuild ReToolbox.slnx -t:Restore -p:Platform=x64 -v:minimal
 
       - name: Test
         shell: pwsh
@@ -24,11 +24,11 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: msbuild ReToolbox/ReToolbox.csproj -t:Build -p:Configuration=Release -p:Platform=x64
+        run: dotnet msbuild ReToolbox/ReToolbox.csproj -t:Build -p:Configuration=Release -p:Platform=x64
 
       - name: Publish
         shell: pwsh
-        run: msbuild ReToolbox/ReToolbox.csproj -t:Publish -p:Configuration=Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:PublishDir=${{ github.workspace }}\artifacts\publish\win-x64
+        run: dotnet msbuild ReToolbox/ReToolbox.csproj -t:Publish -p:Configuration=Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:PublishDir=${{ github.workspace }}\artifacts\publish\win-x64
 
       - name: Dependency audit
         shell: pwsh
