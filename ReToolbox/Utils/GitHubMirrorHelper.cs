@@ -7,12 +7,11 @@ using Microsoft.Win32;
 
 namespace ReToolbox.Utils
 {
-    // Routes GitHub downloads through a chain of public mirror proxies so a slow
-    // or blocked github.com / api.github.com still completes. Each mirror is a plain
+    // Routes GitHub file downloads through a chain of public mirror proxies when a
+    // direct request fails. Each mirror is a plain
     // prefix: https://{mirror}/{original-full-url-including-https://}. We try them in
-    // order and fall back to the original URL when none respond — some mirrors reject
-    // api.github.com (ghfast.top → 403) or may be unreachable (DNS), which the
-    // fail-over handles transparently.
+    // order after trying GitHub itself. Release metadata is intentionally fetched
+    // directly by AppUpdateService so its digest remains independent of the proxy.
     public static class GitHubMirrorHelper
     {
         private const string RegistryPath = @"HKLM\SOFTWARE\ReToolbox";
@@ -74,17 +73,53 @@ namespace ReToolbox.Utils
                    GitHubUrlRouting.IsSupportedGitHubHost(uri.Host);
         }
 
-        // GETs <paramref name="url"/> through each mirror in turn, returning the first
-        // successful response. onMirror reports the serving host (e.g.
-        // "https://gh-proxy.com"), or null when going direct. If acceleration is off, the
-        // URL isn't GitHub, or every mirror fails, the request goes to the original URL.
+        // GETs <paramref name="url"/> directly first, then through each mirror when
+        // enabled. onMirror reports the serving host, or null when GitHub serves it.
         public static async Task<HttpResponseMessage> GetAsync(
             HttpClient client,
             string url,
             Action<string?> onMirror,
             CancellationToken cancellationToken = default)
         {
-            if (IsEnabled && IsGitHubUrl(url))
+            if (!IsEnabled || !IsGitHubUrl(url))
+            {
+                onMirror(null);
+                using var directRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                return await client.SendAsync(
+                    directRequest,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            using (CancellationTokenSource directTimeout =
+                   CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                directTimeout.CancelAfter(MirrorTimeout);
+                try
+                {
+                    using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                    HttpResponseMessage response = await client.SendAsync(
+                        probeRequest,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        directTimeout.Token).ConfigureAwait(false);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        onMirror(null);
+                        return response;
+                    }
+
+                    response.Dispose();
+                }
+                catch (OperationCanceledException)
+                    when (!cancellationToken.IsCancellationRequested)
+                {
+                }
+                catch (HttpRequestException)
+                {
+                }
+            }
+
+            if (IsGitHubUrl(url))
             {
                 // Selected mirror first, then the rest of the presets, de-duplicated so
                 // a custom URL or picked preset is preferred but never blocks fail-over.
@@ -142,10 +177,11 @@ namespace ReToolbox.Utils
                 }
             }
 
-            // No mirror available or none succeeded — go direct to the original URL.
+            // All fallbacks failed. Retry GitHub without the short probe timeout so
+            // the caller receives the authoritative response/error.
             onMirror(null);
-            using var direct = new HttpRequestMessage(HttpMethod.Get, url);
-            return await client.SendAsync(direct, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            using var retryRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            return await client.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
         }
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 
 namespace ReToolbox.Services
@@ -21,6 +22,35 @@ namespace ReToolbox.Services
             string normalized = tagName.Trim().TrimStart('v', 'V');
             return Version.TryParse(normalized, out Version? releaseVersion) &&
                    releaseVersion > currentVersion;
+        }
+
+        public static bool IsOwnedUpdateDirectory(
+            string directoryPath,
+            string commonApplicationData)
+        {
+            const string prefix = "ReToolbox-Update-";
+            try
+            {
+                string root = Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(commonApplicationData));
+                string directory = Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(directoryPath));
+                string? parent = Path.GetDirectoryName(directory);
+                string name = Path.GetFileName(directory);
+
+                return parent is not null &&
+                       parent.Equals(root, StringComparison.OrdinalIgnoreCase) &&
+                       name.StartsWith(prefix, StringComparison.Ordinal) &&
+                       Guid.TryParseExact(
+                           name[prefix.Length..],
+                           "N",
+                           out _);
+            }
+            catch (Exception ex) when (
+                ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return false;
+            }
         }
 
         public static bool TryReadLatestRelease(

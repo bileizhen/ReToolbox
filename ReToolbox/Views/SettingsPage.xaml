@@ -65,14 +65,14 @@
                     <FontIcon Glyph="&#xE72C;" />
                 </controls:SettingsCard.HeaderIcon>
                 <Button
-                    Command="{x:Bind ViewModel.CheckForUpdatesCommand}"
+                    Click="CheckForUpdates_Click"
                     Content="检查更新"
                     IsEnabled="{x:Bind ViewModel.IsCheckingForUpdates, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}" />
             </controls:SettingsCard>
 
             <controls:SettingsCard
                 Style="{StaticResource AtlasLikeSettingsCardTemplate}"
-                Description="GitHub 直连失败时尝试第三方代理；启用即表示信任其传输"
+                Description="GitHub 文件直连失败时尝试第三方代理；版本元数据始终来自官方 API"
                 Header="GitHub 镜像加速">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE774;" />

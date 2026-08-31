@@ -112,4 +112,21 @@ public class UpdateWorkflowTests
             out UpdateRelease? release));
         Assert.Null(release);
     }
+
+    [Fact]
+    public void UpdaterOwnsOnlyItsImmediateGuidStagingDirectory()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "ProgramData");
+        string owned = Path.Combine(
+            root,
+            "ReToolbox-Update-0123456789abcdef0123456789abcdef");
+
+        Assert.True(UpdateWorkflow.IsOwnedUpdateDirectory(owned, root));
+        Assert.False(UpdateWorkflow.IsOwnedUpdateDirectory(
+            Path.Combine(root, "ReToolbox-Update-not-a-guid"),
+            root));
+        Assert.False(UpdateWorkflow.IsOwnedUpdateDirectory(
+            Path.Combine(root, "Other", Path.GetFileName(owned)),
+            root));
+    }
 }

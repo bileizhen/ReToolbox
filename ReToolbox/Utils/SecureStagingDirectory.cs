@@ -9,11 +9,21 @@ namespace ReToolbox.Utils
     {
         public static string Create()
         {
+            return CreateProtectedDirectory("ReToolbox-SecureStaging");
+        }
+
+        public static string CreateUpdateDirectory()
+        {
+            return CreateProtectedDirectory("ReToolbox-Update");
+        }
+
+        private static string CreateProtectedDirectory(string prefix)
+        {
             string commonApplicationData = Environment.GetFolderPath(
                 Environment.SpecialFolder.CommonApplicationData);
             string path = Path.Combine(
                 commonApplicationData,
-                $"ReToolbox-SecureStaging-{Guid.NewGuid():N}");
+                $"{prefix}-{Guid.NewGuid():N}");
 
             SecurityIdentifier administrators = new SecurityIdentifier(
                 WellKnownSidType.BuiltinAdministratorsSid,

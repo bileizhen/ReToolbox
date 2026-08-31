@@ -38,6 +38,7 @@ namespace ReToolbox.Services
 
         public AppUpdateService()
         {
+            CleanupStaleUpdateDirectories();
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(30)
@@ -47,7 +48,7 @@ namespace ReToolbox.Services
                 "application/vnd.github+json");
             _httpClient.DefaultRequestHeaders.Add(
                 "X-GitHub-Api-Version",
-                "2026-03-10");
+                "2022-11-28");
         }
 
         public bool CheckOnStartupEnabled
@@ -89,9 +90,13 @@ namespace ReToolbox.Services
         {
             try
             {
-                using HttpResponseMessage response =
-                    await GetLatestReleaseResponseAsync(cancellationToken)
-                        .ConfigureAwait(false);
+                using HttpRequestMessage request = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    LatestReleaseUrl);
+                using HttpResponseMessage response = await _httpClient.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
                 string json = await response.Content.ReadAsStringAsync(
                     cancellationToken).ConfigureAwait(false);
@@ -138,7 +143,7 @@ namespace ReToolbox.Services
             IProgress<string>? progress = null,
             CancellationToken cancellationToken = default)
         {
-            string stagingDirectory = SecureStagingDirectory.Create();
+            string stagingDirectory = SecureStagingDirectory.CreateUpdateDirectory();
             string installerPath = Path.Combine(
                 stagingDirectory,
                 UpdateWorkflow.InstallerAssetName);
@@ -205,6 +210,23 @@ namespace ReToolbox.Services
             }
         }
 
+        public void DiscardDownloadedUpdate(DownloadedUpdate update)
+        {
+            string? directory = Path.GetDirectoryName(update.InstallerPath);
+            if (directory is null ||
+                !Path.GetFileName(update.InstallerPath).Equals(
+                    UpdateWorkflow.InstallerAssetName,
+                    StringComparison.Ordinal) ||
+                !UpdateWorkflow.IsOwnedUpdateDirectory(
+                    directory,
+                    GetCommonApplicationData()))
+            {
+                return;
+            }
+
+            TryDeleteUpdateDirectory(directory);
+        }
+
         public void OpenReleasePage(UpdateRelease release)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo
@@ -218,38 +240,6 @@ namespace ReToolbox.Services
         public void Dispose()
         {
             _httpClient.Dispose();
-        }
-
-        private async Task<HttpResponseMessage> GetLatestReleaseResponseAsync(
-            CancellationToken cancellationToken)
-        {
-            using CancellationTokenSource directTimeout =
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            directTimeout.CancelAfter(TimeSpan.FromSeconds(8));
-            try
-            {
-                using HttpRequestMessage request = new HttpRequestMessage(
-                    HttpMethod.Get,
-                    LatestReleaseUrl);
-                return await _httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    directTimeout.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-                when (!cancellationToken.IsCancellationRequested &&
-                      GitHubMirrorHelper.IsEnabled)
-            {
-            }
-            catch (HttpRequestException) when (GitHubMirrorHelper.IsEnabled)
-            {
-            }
-
-            return await GitHubMirrorHelper.GetAsync(
-                _httpClient,
-                LatestReleaseUrl,
-                _ => { },
-                cancellationToken).ConfigureAwait(false);
         }
 
         private static bool ReadEnabledByDefault(string valueName)
@@ -281,13 +271,54 @@ namespace ReToolbox.Services
             }
         }
 
+        private static string GetCommonApplicationData()
+        {
+            return Environment.GetFolderPath(
+                Environment.SpecialFolder.CommonApplicationData);
+        }
+
+        private static void CleanupStaleUpdateDirectories()
+        {
+            string root = GetCommonApplicationData();
+            try
+            {
+                foreach (string directory in Directory.EnumerateDirectories(
+                             root,
+                             "ReToolbox-Update-*",
+                             SearchOption.TopDirectoryOnly))
+                {
+                    if (UpdateWorkflow.IsOwnedUpdateDirectory(directory, root))
+                    {
+                        TryDeleteUpdateDirectory(directory);
+                    }
+                }
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
         private static void TryDeleteStagingDirectory(string stagingDirectory)
+        {
+            if (UpdateWorkflow.IsOwnedUpdateDirectory(
+                    stagingDirectory,
+                    GetCommonApplicationData()))
+            {
+                TryDeleteUpdateDirectory(stagingDirectory);
+            }
+        }
+
+        private static void TryDeleteUpdateDirectory(string directory)
         {
             try
             {
-                Directory.Delete(stagingDirectory, recursive: true);
+                bool isReparsePoint =
+                    (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0;
+                Directory.Delete(directory, recursive: !isReparsePoint);
             }
-            catch
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException)
             {
             }
         }

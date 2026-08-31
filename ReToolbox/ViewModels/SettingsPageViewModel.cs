@@ -1,9 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using ReToolbox.Services;
 using ReToolbox.Utils;
 
@@ -118,25 +116,26 @@ namespace ReToolbox.ViewModels
             }
         }
 
-        [RelayCommand]
-        private async Task CheckForUpdatesAsync()
+        public bool BeginUpdateCheck()
         {
             if (IsCheckingForUpdates)
             {
-                return;
+                return false;
             }
 
             IsCheckingForUpdates = true;
             UpdateStatusText = "正在检查更新...";
-            try
-            {
-                UpdateCheckResult result = await _updateService.CheckForUpdatesAsync();
-                UpdateStatusText = result.Message;
-            }
-            finally
-            {
-                IsCheckingForUpdates = false;
-            }
+            return true;
+        }
+
+        public void ReportUpdateStatus(string message)
+        {
+            UpdateStatusText = message;
+        }
+
+        public void EndUpdateCheck()
+        {
+            IsCheckingForUpdates = false;
         }
     }
 }
