@@ -19,6 +19,8 @@
     <Compile Include="..\ReToolbox\Services\ActivationWorkflow.cs" Link="ActivationWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\DefenderRemovalWorkflow.cs" Link="DefenderRemovalWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\EdgeRemovalWorkflow.cs" Link="EdgeRemovalWorkflow.cs" />
+    <Compile Include="..\ReToolbox\Services\DiskCleanupWorkflow.cs" Link="DiskCleanupWorkflow.cs" />
+    <Compile Include="..\ReToolbox\Services\DiskCleanupService.cs" Link="DiskCleanupService.cs" />
     <Compile Include="..\ReToolbox\Services\SoftwareCatalog.cs" Link="SoftwareCatalog.cs" />
     <Compile Include="..\ReToolbox\Services\UpdateWorkflow.cs" Link="UpdateWorkflow.cs" />
     <Compile Include="..\ReToolbox\Utils\ArtifactIntegrity.cs" Link="ArtifactIntegrity.cs" />

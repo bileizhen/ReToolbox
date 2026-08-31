@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="ReToolbox.Views.DiskCleanupPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="using:ReToolbox.ViewModels"
+    mc:Ignorable="d">
+
+    <Grid Margin="55,0,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Margin="0,24,36,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="4">
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="磁盘清理" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="只读扫描可重新生成的缓存和临时内容，确认后才会清理" />
+            </StackPanel>
+            <Button
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Click="Scan_Click"
+                Content="重新扫描"
+                IsEnabled="{x:Bind ViewModel.CanScan, Mode=OneWay}" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="0,0,36,28" Spacing="14">
+                <Border
+                    Padding="22"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12">
+                    <Grid ColumnSpacing="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon
+                            Width="72"
+                            Height="72"
+                            FontSize="48"
+                            Foreground="#2AA8FF"
+                            Glyph="&#xE74D;" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5">
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Text="深度清理" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                                TextWrapping="Wrap" />
+                            <ProgressBar
+                                Margin="0,6,0,0"
+                                IsIndeterminate="True"
+                                Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock
+                                HorizontalAlignment="Right"
+                                FontSize="28"
+                                FontWeight="SemiBold"
+                                Text="{x:Bind ViewModel.TotalSizeText, Mode=OneWay}" />
+                            <TextBlock
+                                HorizontalAlignment="Right"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="扫描到的可清理空间" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="Recommended_Click" Content="智能推荐" />
+                        <Button Click="SelectAll_Click" Content="全选" />
+                        <Button Click="ClearSelection_Click" Content="清空选择" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ViewModel.SelectedSummaryText, Mode=OneWay}" />
+                        <Button
+                            Click="Clean_Click"
+                            Content="清理所选"
+                            IsEnabled="{x:Bind ViewModel.CanClean, Mode=OneWay}"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+
+                <ListView
+                    IsItemClickEnabled="False"
+                    ItemsSource="{x:Bind ViewModel.Items, Mode=OneWay}"
+                    SelectionMode="None">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="viewModels:DiskCleanupItemViewModel">
+                            <Border
+                                Margin="0,0,0,8"
+                                Padding="18,14"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                                <Grid ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox
+                                        VerticalAlignment="Center"
+                                        IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                    <StackPanel Grid.Column="1" Spacing="5">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock FontWeight="SemiBold" Text="{x:Bind Name}" />
+                                            <Border
+                                                Padding="7,2"
+                                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                                CornerRadius="8">
+                                                <TextBlock
+                                                    FontSize="11"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    Text="{x:Bind Category}" />
+                                            </Border>
+                                            <TextBlock
+                                                FontSize="12"
+                                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                Text="{x:Bind RiskText}" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind Description}"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Text="{x:Bind SizeText}" />
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind FileCountText}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <InfoBar
+                    IsClosable="False"
+                    IsOpen="True"
+                    Message="为保护数据，本模块不扫描下载、桌面、文档、项目目录、浏览器账户数据、AI 模型或 Windows Update 数据库。开发工具缓存默认不选中。"
+                    Severity="Informational"
+                    Title="安全边界" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

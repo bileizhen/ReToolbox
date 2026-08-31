@@ -81,6 +81,11 @@
                         <FontIcon Glyph="&#xE964;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="DiskCleanup" Content="磁盘清理" Tag="ReToolbox.Views.DiskCleanupPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE74D;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="PowerPlan" Content="电源管理" Tag="ReToolbox.Views.PowerPlanPage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE83F;" />

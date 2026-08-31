@@ -9,6 +9,13 @@ ReToolbox references or integrates with third-party projects. This document is i
 - Use in ReToolbox: design and product reference; the README previously described ReToolbox as “based on” Atlas Toolbox.
 - Required release action: maintainers must review Git history and source similarity to identify any copied or adapted implementation. Any GPL-covered derivative material must retain the notices, source availability, and licensing obligations required by its license. The repository’s Apache-2.0 declaration does not override third-party obligations.
 
+## MangoDisk
+
+- Project: https://github.com/harry0703/MangoDisk
+- Upstream revision reviewed: `ee9b17752a38bf9ca92ae5fefc81b26f680a3d9a`
+- Upstream license observed: GPL-3.0
+- Use in ReToolbox: product-behavior and safety-model research only. ReToolbox's disk-cleanup implementation and Windows cleanup catalog were written independently; no MangoDisk source code or declarative cleanup rules are included.
+
 ## Verified remote tools
 
 Administrator-level third-party tools are downloaded only from immutable upstream revisions and are checked against the recorded size and SHA-256 digest before execution:

@@ -130,6 +130,7 @@
 |  🏠  | **主页**          | 概览仪表盘与常用功能快捷入口                                                                                          |
 |  🖥️  | **系统信息**      | 硬件检测（型号 / 主板 / BIOS / 处理器 / 内存 / 显卡 / NPU / 显示器 / 硬盘 / 声卡 / 网卡），支持截图导出与详细信息查看 |
 |  🧠  | **内存管理**      | 内存仪表盘、轻量 / 深度清理、虚拟内存自适应、定时自动清理、进程内存排行                                               |
+|  🧹  | **磁盘清理**      | 只读扫描系统、浏览器、应用与开发工具缓存，按风险智能推荐，确认后执行深度清理                                           |
 |  🔋  | **电源管理**      | 电源计划切换与删除、开机自动切换、卓越性能计划、电池健康度                                                           |
 |  📦  | **软件安装**      | 常用软件一键安装                                                                                                      |
 |  🔄  | **管理更新**      | 管理 Windows 更新行为                                                                                                 |
@@ -277,6 +278,7 @@ No ads, no bundles — focused on getting things done.
 |  🏠  | **Home**           | Overview dashboard with quick actions                                                                                                           |
 |  🖥️  | **System Info**    | Hardware detection (model / board / BIOS / CPU / memory / GPU / NPU / display / disk / sound / network), with screenshot export and detail view |
 |  🧠  | **Memory**         | Memory dashboard, light / deep cleanup, adaptive virtual memory, scheduled auto-cleaning, process memory ranking                                |
+|  🧹  | **Disk Cleanup**   | Read-only scan of system, browser, application, and developer caches with risk-aware selection and confirmed cleanup                           |
 |  🔋  | **Power**          | Switch and delete power plans, switch automatically on sign-in, add Ultimate Performance, inspect battery health                               |
 |  📦  | **Software**       | One-click install for common applications                                                                                                       |
 |  🔄  | **Windows Update** | Manage Windows update behavior                                                                                                                  |
