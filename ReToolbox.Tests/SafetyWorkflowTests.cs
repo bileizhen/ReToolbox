@@ -25,6 +25,15 @@ public class SafetyWorkflowTests
         Assert.False(InputValidation.TryNormalizeHttpsOrigin(input, out _));
     }
 
+    [Fact]
+    public void RetiredMirrorIsNotIncludedInBuiltInFallbacks()
+    {
+        string source = File.ReadAllText(
+            RepoFile("ReToolbox", "Utils", "GitHubMirrorHelper.cs"));
+
+        Assert.DoesNotContain("https://gh.llk.cc", source, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("Microsoft.PowerToys")]
     [InlineData("7zip.7zip")]

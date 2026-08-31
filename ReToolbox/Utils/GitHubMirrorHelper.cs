@@ -25,8 +25,7 @@ namespace ReToolbox.Utils
             GitHubUrlRouting.RecommendedProxy,
             "https://gh-proxy.com",
             "https://github.dpik.top",
-            "https://ghfast.top",
-            "https://gh.llk.cc"
+            "https://ghfast.top"
         };
 
         // Per-mirror probe budget: a dead/slow node must not stall the download for
