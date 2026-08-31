@@ -34,6 +34,17 @@ public class SafetyWorkflowTests
         Assert.DoesNotContain("https://gh.llk.cc", source, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void InstallerBuildRestoresBeforePublishing()
+    {
+        string script = File.ReadAllText(
+            RepoFile("scripts", "build-installer.ps1"));
+
+        Assert.DoesNotContain("-t:Restore,Publish", script, StringComparison.Ordinal);
+        Assert.Contains("-t:Restore", script, StringComparison.Ordinal);
+        Assert.Contains("-t:Publish", script, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("Microsoft.PowerToys")]
     [InlineData("7zip.7zip")]

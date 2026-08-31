@@ -37,9 +37,19 @@ if (Test-Path $publishDir) {
 }
 New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
 
+Write-Host "Restoring ReToolbox (x64)..."
+& $msbuild $projectPath `
+    -t:Restore `
+    -p:Platform=x64 `
+    -v:minimal
+
+if ($LASTEXITCODE -ne 0) {
+    throw "MSBuild Restore failed with exit code: $LASTEXITCODE"
+}
+
 Write-Host "Publishing ReToolbox (x64)..."
 & $msbuild $projectPath `
-    -t:Restore,Publish `
+    -t:Publish `
     -p:Configuration=$Configuration `
     -p:Platform=x64 `
     -p:RuntimeIdentifier=win-x64 `
