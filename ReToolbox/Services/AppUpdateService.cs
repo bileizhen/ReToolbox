@@ -164,7 +164,7 @@ namespace ReToolbox.Services
                         mirror is null
                             ? "正在从 GitHub 下载更新..."
                             : $"正在通过 {mirror} 下载更新..."),
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
                 progress?.Report("更新已下载并通过 SHA-256 校验");
                 return new DownloadedUpdate(release, installerPath);
             }

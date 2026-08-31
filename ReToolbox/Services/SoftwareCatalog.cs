@@ -11,7 +11,12 @@ namespace ReToolbox.Services
         Uri? OfficialPageUri,
         string Category,
         string Description,
-        string IconGlyph);
+        string IconGlyph,
+        GitHubReleaseDownload? GitHubRelease = null);
+
+    public sealed record GitHubReleaseDownload(
+        string Repository,
+        string AssetNamePattern);
 
     public enum SoftwareInstallOutcome
     {
@@ -52,7 +57,45 @@ namespace ReToolbox.Services
                     null,
                     "系统工具",
                     "轻量级软件卸载与残留清理工具",
-                    "\uE74D")
+                    "\uE74D"),
+                new(
+                    "Steam",
+                    "Valve.Steam",
+                    "winget",
+                    null,
+                    "游戏",
+                    "Steam 游戏与软件平台",
+                    "\uE7FC"),
+                new(
+                    "Office Tool Plus",
+                    string.Empty,
+                    string.Empty,
+                    new Uri("https://github.com/YerongAI/Office-Tool"),
+                    "办公",
+                    "自动下载最新 x64 完整版 Release（GitHub 镜像优先）",
+                    "\uE8A5",
+                    new GitHubReleaseDownload(
+                        "YerongAI/Office-Tool",
+                        @"^Office_Tool_with_runtime_.*_x64\.zip$")),
+                new(
+                    "UU远程",
+                    "NetEase.UURemote",
+                    "winget",
+                    null,
+                    "远程工具",
+                    "网易 UU 远程控制客户端",
+                    "\uE7EF"),
+                new(
+                    "Folia Major",
+                    string.Empty,
+                    string.Empty,
+                    new Uri("https://github.com/chthollyphile/folia-major"),
+                    "媒体",
+                    "自动下载最新 Windows x64 Release（GitHub 镜像优先）",
+                    "\uEC4F",
+                    new GitHubReleaseDownload(
+                        "chthollyphile/folia-major",
+                        @"^Folia-Setup-.*\.exe$"))
             };
 
         public static IReadOnlyList<string> BuildWingetInstallArguments(

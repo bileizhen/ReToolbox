@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -15,9 +16,12 @@ namespace ReToolbox.Services
     public class SoftwareInstallService
     {
         private readonly List<SoftwareItem> _softwareItems;
+        private readonly GitHubReleaseDownloadService _gitHubReleaseDownloadService;
 
-        public SoftwareInstallService()
+        public SoftwareInstallService(
+            GitHubReleaseDownloadService gitHubReleaseDownloadService)
         {
+            _gitHubReleaseDownloadService = gitHubReleaseDownloadService;
             _softwareItems = GetDefaultSoftwareList();
         }
 
@@ -48,6 +52,38 @@ namespace ReToolbox.Services
                     : new SoftwareInstallResult(
                         SoftwareInstallOutcome.Failed,
                         $"{software.Name} 安装失败");
+            }
+            else if (software.GitHubRelease is not null)
+            {
+                try
+                {
+                    downloadProgress?.Report(0);
+                    IProgress<string>? releaseProgress = progress is null
+                        ? null
+                        : new Progress<string>(message =>
+                            progress.Report(LogEntry.Normal(message)));
+                    DownloadedGitHubRelease release =
+                        await _gitHubReleaseDownloadService.DownloadLatestAsync(
+                            software.GitHubRelease,
+                            releaseProgress,
+                            downloadProgress,
+                            cancellationToken);
+                    result = new SoftwareInstallResult(
+                        SoftwareInstallOutcome.ManualActionRequired,
+                        $"{software.Name} 最新 Release 已下载到：{release.FilePath}；请自行运行或解压");
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (
+                    ex is HttpRequestException or IOException or InvalidDataException or
+                    TaskCanceledException)
+                {
+                    result = new SoftwareInstallResult(
+                        SoftwareInstallOutcome.Failed,
+                        $"{software.Name} Release 下载失败：{ex.Message}");
+                }
             }
             else if (software.OfficialPageUri is not null)
             {
@@ -475,6 +511,7 @@ namespace ReToolbox.Services
                 WingetId = entry.WingetId,
                 WingetSource = entry.WingetSource,
                 OfficialPageUri = entry.OfficialPageUri,
+                GitHubRelease = entry.GitHubRelease,
                 Category = entry.Category,
                 Description = entry.Description,
                 IconGlyph = entry.IconGlyph

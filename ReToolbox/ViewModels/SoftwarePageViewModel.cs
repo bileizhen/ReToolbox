@@ -86,7 +86,8 @@ namespace ReToolbox.ViewModels
                     cancellationToken.ThrowIfCancellationRequested();
                     CurrentItemText = $"{item.Name}  ({completed + 1}/{total})";
                     DownloadProgress = 0;
-                    IsDownloading = !string.IsNullOrWhiteSpace(item.WingetId);
+                    IsDownloading = !string.IsNullOrWhiteSpace(item.WingetId) ||
+                                    item.GitHubRelease is not null;
 
                     var log = new Progress<LogEntry>(entry =>
                     {

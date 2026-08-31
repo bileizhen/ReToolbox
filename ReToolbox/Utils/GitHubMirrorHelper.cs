@@ -87,6 +87,8 @@ namespace ReToolbox.Utils
             long expectedSize,
             Func<string, CancellationToken, Task> validate,
             Action<string?> onMirror,
+            bool preferMirrors = false,
+            Action<int>? onProgress = null,
             CancellationToken cancellationToken = default)
         {
             if (!IsGitHubUrl(url))
@@ -100,10 +102,7 @@ namespace ReToolbox.Utils
                 throw new ArgumentOutOfRangeException(nameof(expectedSize));
             }
 
-            var candidates = new List<(Uri Uri, string? Mirror)>
-            {
-                (new Uri(url), null)
-            };
+            var mirrorCandidates = new List<(Uri Uri, string? Mirror)>();
             if (IsEnabled)
             {
                 var mirrors = new List<string>();
@@ -123,12 +122,25 @@ namespace ReToolbox.Utils
 
                 foreach (string mirror in mirrors)
                 {
-                    candidates.Add((
+                    mirrorCandidates.Add((
                         GitHubUrlRouting.BuildMirroredUri(
                             mirror,
                             new Uri(url)),
                         mirror));
                 }
+            }
+
+            var candidates = new List<(Uri Uri, string? Mirror)>();
+            if (preferMirrors)
+            {
+                candidates.AddRange(mirrorCandidates);
+            }
+
+            candidates.Add((new Uri(url), null));
+
+            if (!preferMirrors)
+            {
+                candidates.AddRange(mirrorCandidates);
             }
 
             Exception? lastFailure = null;
@@ -172,6 +184,7 @@ namespace ReToolbox.Utils
                         response,
                         destinationPath,
                         expectedSize,
+                        onProgress,
                         transferTimeout.Token).ConfigureAwait(false);
                     await validate(destinationPath, transferTimeout.Token)
                         .ConfigureAwait(false);
@@ -201,6 +214,7 @@ namespace ReToolbox.Utils
             HttpResponseMessage response,
             string destinationPath,
             long expectedSize,
+            Action<int>? onProgress,
             CancellationToken cancellationToken)
         {
             await using Stream remote = await response.Content.ReadAsStreamAsync(
@@ -215,6 +229,8 @@ namespace ReToolbox.Utils
 
             byte[] buffer = new byte[81920];
             long totalBytes = 0;
+            int lastProgress = -1;
+            onProgress?.Invoke(0);
             while (true)
             {
                 using CancellationTokenSource stallTimeout =
@@ -242,6 +258,13 @@ namespace ReToolbox.Utils
                 await local.WriteAsync(
                     buffer.AsMemory(0, bytesRead),
                     cancellationToken).ConfigureAwait(false);
+
+                int progress = (int)(totalBytes * 100 / expectedSize);
+                if (progress != lastProgress)
+                {
+                    lastProgress = progress;
+                    onProgress?.Invoke(progress);
+                }
             }
 
             await local.FlushAsync(cancellationToken).ConfigureAwait(false);

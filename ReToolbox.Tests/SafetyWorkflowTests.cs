@@ -75,7 +75,7 @@ public class SafetyWorkflowTests
     }
 
     [Fact]
-    public void SoftwareCatalogUsesSupportedWingetPackagesOnly()
+    public void SoftwareCatalogUsesOnlyCuratedInstallSources()
     {
         string source = File.ReadAllText(RepoFile("ReToolbox", "Services", "SoftwareInstallService.cs"));
 
@@ -84,6 +84,18 @@ public class SafetyWorkflowTests
         Assert.DoesNotContain("AllowUnverifiedDirectInstallers", source, StringComparison.Ordinal);
         Assert.DoesNotContain("InstallFromUrlAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("DownloadAndRunAsync", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GitHubReleaseDownloadsAreVerifiedAndNeverAutoExecuted()
+    {
+        string source = File.ReadAllText(
+            RepoFile("ReToolbox", "Services", "GitHubReleaseDownloadService.cs"));
+
+        Assert.Contains("ArtifactIntegrity.HasExpectedSha256Async", source, StringComparison.Ordinal);
+        Assert.Contains("preferMirrors: true", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Process.Start", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("UseShellExecute", source, StringComparison.Ordinal);
     }
 
     [Fact]

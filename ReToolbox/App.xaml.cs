@@ -19,6 +19,7 @@ namespace ReToolbox
             Host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder()
                 .ConfigureServices((context, services) =>
                 {
+                    services.AddSingleton<GitHubReleaseDownloadService>();
                     services.AddSingleton<SoftwareInstallService>();
                     services.AddSingleton<ActivationService>();
                     services.AddSingleton<WindowsUpdateService>();
