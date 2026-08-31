@@ -8,7 +8,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4)](#)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#)
-[![Version](https://img.shields.io/badge/version-1.6.5-2EA44F)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.6.6-2EA44F)](../../releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE.txt)
 
 </div>
@@ -16,7 +16,7 @@
 ---
 
 <p>
-  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.6.5-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
+  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.6.6-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
   <a href="../../releases"><img src="https://img.shields.io/badge/download-Setup.exe-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="Download"/></a>
   <a href="./LICENSE.txt"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="License"/></a>
   <a href="#-从源码构建-build-from-source"><img src="https://img.shields.io/badge/build-passing-2EA44F?style=for-the-badge&logo=appveyor&logoColor=white" alt="Build"/></a>
