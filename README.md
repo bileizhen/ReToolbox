@@ -136,6 +136,7 @@
 |  🔑  | **系统激活**      | 系统激活相关工具                                                                                                      |
 |  🌐  | **管理 Edge**     | 管理 Microsoft Edge 浏览器                                                                                            |
 |  🛡️  | **管理 Defender** | 管理 Microsoft Defender 安全中心                                                                                      |
+|  ⚙️  | **设置**          | 启动检查更新、自动下载已验证的新版本，并支持 GitHub Proxy 加速                                                       |
 
 <a id="-下载与安装"></a>
 
@@ -173,7 +174,7 @@
 
 **安全说明**
 
-ReToolbox 仅通过 Windows Package Manager (`winget`) 安装普通软件，并以退出代码和安装状态复核结果。Windows 激活只下载固定 MAS 3.11 提交中的 `MAS_AIO.cmd`，校验文件大小与 SHA-256 后以 `/HWID-NoEditionChange` 运行；不会自动更改 Windows Edition。Defender Remover 与 EdgeRemover 同样使用固定上游版本、摘要校验和受保护暂存目录。软件目录不包含未经校验的直接安装包，请勿从未知镜像手动运行替代脚本。
+ReToolbox 仅通过 Windows Package Manager (`winget`) 安装普通软件，并以退出代码和安装状态复核结果。Windows 激活只下载固定 MAS 3.11 提交中的 `MAS_AIO.cmd`，校验文件大小与 SHA-256 后以 `/HWID-NoEditionChange` 运行；不会自动更改 Windows Edition。Defender Remover 与 EdgeRemover 同样使用固定上游版本、摘要校验和受保护暂存目录。自动更新使用 GitHub Release API、精确安装器名称与 SHA-256 摘要；GitHub 直连失败时可回退到用户启用的第三方 Proxy，启用即表示信任其传输。安装前会再次校验并请求确认。软件目录不包含未经校验的直接安装包，请勿从未知镜像手动运行替代脚本。
 
 **🚀 一键发布**
 
@@ -282,6 +283,7 @@ No ads, no bundles — focused on getting things done.
 |  🔑  | **Activation**     | System activation utilities                                                                                                                     |
 |  🌐  | **Edge**           | Manage the Microsoft Edge browser                                                                                                               |
 |  🛡️  | **Defender**       | Manage Microsoft Defender security center                                                                                                       |
+|  ⚙️  | **Settings**       | Check for updates at startup, download verified releases automatically, and optionally use a GitHub proxy                                      |
 
 <a id="-download--install"></a>
 
@@ -319,7 +321,7 @@ No ads, no bundles — focused on getting things done.
 
 **Security note**
 
-Normal software installation stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Windows activation downloads `MAS_AIO.cmd` only from the pinned MAS 3.11 commit, verifies its size and SHA-256, and runs `/HWID-NoEditionChange` so the Windows edition is not changed automatically. Defender Remover and EdgeRemover likewise use pinned upstream releases, digest verification, and protected staging. Unverified direct installers are not included in the software catalog.
+Normal software installation stays within Windows Package Manager (`winget`) and checks both the process exit code and installed state. Windows activation downloads `MAS_AIO.cmd` only from the pinned MAS 3.11 commit, verifies its size and SHA-256, and runs `/HWID-NoEditionChange` so the Windows edition is not changed automatically. Defender Remover and EdgeRemover likewise use pinned upstream releases, digest verification, and protected staging. Automatic updates use the GitHub Release API, the exact installer asset name, and its SHA-256 digest. When direct GitHub access fails, the app can fall back to a user-enabled third-party proxy; enabling it means trusting that transport. The installer is verified again before the user confirms execution. Unverified direct installers are not included in the software catalog.
 
 **🚀 One-Click Build**
 

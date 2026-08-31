@@ -12,8 +12,7 @@ namespace ReToolbox.Views
 
         public SettingsPage()
         {
-            ViewModel = App.Services.GetService<SettingsPageViewModel>()
-                ?? new SettingsPageViewModel();
+            ViewModel = App.Services.GetRequiredService<SettingsPageViewModel>();
 
             InitializeComponent();
             Loaded += (s, e) => PageAnimations.StaggerIn(this);

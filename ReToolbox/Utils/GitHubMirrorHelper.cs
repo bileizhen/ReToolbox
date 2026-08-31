@@ -22,6 +22,7 @@ namespace ReToolbox.Utils
         // Preset mirrors, tried in order. Each is the host with scheme and no trailing /.
         public static readonly string[] Mirrors =
         {
+            GitHubUrlRouting.RecommendedProxy,
             "https://gh-proxy.com",
             "https://github.dpik.top",
             "https://ghfast.top",
@@ -68,8 +69,9 @@ namespace ReToolbox.Utils
 
         public static bool IsGitHubUrl(string url)
         {
-            return url.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase) ||
-                   url.StartsWith("https://api.github.com/", StringComparison.OrdinalIgnoreCase);
+            return Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) &&
+                   uri.Scheme == Uri.UriSchemeHttps &&
+                   GitHubUrlRouting.IsSupportedGitHubHost(uri.Host);
         }
 
         // GETs <paramref name="url"/> through each mirror in turn, returning the first
@@ -106,7 +108,10 @@ namespace ReToolbox.Utils
                         CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     cts.CancelAfter(MirrorTimeout);
 
-                    using var mirrored = new HttpRequestMessage(HttpMethod.Get, $"{mirror}/{url}");
+                    Uri mirroredUri = GitHubUrlRouting.BuildMirroredUri(
+                        mirror,
+                        new Uri(url));
+                    using var mirrored = new HttpRequestMessage(HttpMethod.Get, mirroredUri);
 
                     HttpResponseMessage response;
                     try
@@ -114,7 +119,13 @@ namespace ReToolbox.Utils
                         response = await client.SendAsync(mirrored, HttpCompletionOption.ResponseHeadersRead, cts.Token)
                             .ConfigureAwait(false);
                     }
-                    catch
+                    catch (OperationCanceledException)
+                        when (!cancellationToken.IsCancellationRequested)
+                    {
+                        // Per-mirror timeout — try the next candidate.
+                        continue;
+                    }
+                    catch (HttpRequestException)
                     {
                         // DNS failure, timeout, connection refused — try the next mirror.
                         continue;

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -6,12 +7,15 @@ using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using ReToolbox.Services;
 using System;
+using System.Diagnostics;
 using System.Linq;
 
 namespace ReToolbox
 {
     public sealed partial class MainWindow : Window
     {
+        private bool _startupUpdateCheckStarted;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -28,10 +32,122 @@ namespace ReToolbox
             ThemeService.Init(RootGrid);
             UpdateTitleBarColors(ThemeService.Current);
             UpdateThemeIcon();
+            RootGrid.Loaded += RootGrid_Loaded;
 
             // 默认选中第一项并导航到主页
             NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems.OfType<NavigationViewItem>().First();
             NavigateTo("ReToolbox.Views.HomePage");
+        }
+
+        private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (_startupUpdateCheckStarted)
+            {
+                return;
+            }
+
+            _startupUpdateCheckStarted = true;
+            AppUpdateService updateService =
+                App.Services.GetRequiredService<AppUpdateService>();
+            if (!updateService.CheckOnStartupEnabled)
+            {
+                return;
+            }
+
+            try
+            {
+                UpdateCheckResult check = await updateService.CheckForUpdatesAsync();
+                if (check.State != UpdateCheckState.UpdateAvailable ||
+                    check.Release is null)
+                {
+                    return;
+                }
+
+                if (!updateService.AutomaticDownloadEnabled)
+                {
+                    await ShowAvailableUpdateAsync(updateService, check.Release);
+                    return;
+                }
+
+                DownloadedUpdate downloaded;
+                try
+                {
+                    downloaded = await updateService.DownloadUpdateAsync(check.Release);
+                }
+                catch (Exception ex)
+                {
+                    await ShowAvailableUpdateAsync(
+                        updateService,
+                        check.Release,
+                        $"自动下载失败：{ex.Message}");
+                    return;
+                }
+
+                ContentDialog installDialog = new ContentDialog
+                {
+                    XamlRoot = RootGrid.XamlRoot,
+                    Title = $"{downloaded.Release.TagName} 已准备就绪",
+                    Content = "更新已下载并通过文件大小与 SHA-256 校验。是否关闭 ReToolbox 并启动安装程序？",
+                    PrimaryButtonText = "立即安装",
+                    CloseButtonText = "稍后",
+                    DefaultButton = ContentDialogButton.Primary
+                };
+                if (await installDialog.ShowAsync() == ContentDialogResult.Primary)
+                {
+                    try
+                    {
+                        await updateService.LaunchInstallerAsync(downloaded);
+                        Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowUpdateErrorAsync($"无法启动更新安装器：{ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Startup update check failed: {ex}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowAvailableUpdateAsync(
+            AppUpdateService updateService,
+            UpdateRelease release,
+            string? detail = null)
+        {
+            string message = $"发现新版本 {release.TagName}。";
+            if (!string.IsNullOrWhiteSpace(detail))
+            {
+                message += $"\n\n{detail}";
+            }
+
+            ContentDialog dialog = new ContentDialog
+            {
+                XamlRoot = RootGrid.XamlRoot,
+                Title = "发现 ReToolbox 更新",
+                Content = message,
+                PrimaryButtonText = "查看发布页",
+                CloseButtonText = "稍后",
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                updateService.OpenReleasePage(release);
+            }
+        }
+
+        private async System.Threading.Tasks.Task ShowUpdateErrorAsync(string message)
+        {
+            ContentDialog dialog = new ContentDialog
+            {
+                XamlRoot = RootGrid.XamlRoot,
+                Title = "更新失败",
+                Content = message,
+                CloseButtonText = "关闭",
+                DefaultButton = ContentDialogButton.Close
+            };
+            await dialog.ShowAsync();
         }
 
         private void NavigationViewControl_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

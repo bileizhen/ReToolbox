@@ -30,6 +30,7 @@ namespace ReToolbox
                     services.AddSingleton<MemoryAutoCleanService>();
                     services.AddSingleton<PowerPlanService>();
                     services.AddSingleton<BatteryService>();
+                    services.AddSingleton<AppUpdateService>();
 
                     services.AddTransient<SoftwarePageViewModel>();
                     services.AddTransient<ActivationPageViewModel>();
