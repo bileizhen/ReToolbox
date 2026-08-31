@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,6 +32,10 @@ namespace ReToolbox.Utils
         // Per-mirror probe budget: a dead/slow node must not stall the download for
         // long before we move on to the next candidate.
         private static readonly TimeSpan MirrorTimeout = TimeSpan.FromSeconds(8);
+        private static readonly TimeSpan TransferStallTimeout =
+            TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan TransferTimeout =
+            TimeSpan.FromMinutes(15);
 
         // Whether mirror acceleration is on. Defaults to enabled (1) so a fresh
         // install in a restricted network benefits immediately; persisted in the
@@ -73,116 +78,186 @@ namespace ReToolbox.Utils
                    GitHubUrlRouting.IsSupportedGitHubHost(uri.Host);
         }
 
-        // GETs <paramref name="url"/> directly first, then through each mirror when
-        // enabled. onMirror reports the serving host, or null when GitHub serves it.
-        public static async Task<HttpResponseMessage> GetAsync(
+        // Downloads and validates a complete file directly first, then retries the
+        // entire transfer through each enabled mirror. A partial or invalid file is
+        // removed before the next source is attempted.
+        public static async Task DownloadFileAsync(
             HttpClient client,
             string url,
+            string destinationPath,
+            long expectedSize,
+            Func<string, CancellationToken, Task> validate,
             Action<string?> onMirror,
             CancellationToken cancellationToken = default)
         {
-            if (!IsEnabled || !IsGitHubUrl(url))
+            if (!IsGitHubUrl(url))
             {
-                onMirror(null);
-                using var directRequest = new HttpRequestMessage(HttpMethod.Get, url);
-                return await client.SendAsync(
-                    directRequest,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken).ConfigureAwait(false);
+                throw new ArgumentException(
+                    "Only HTTPS GitHub file URLs can use this downloader.",
+                    nameof(url));
+            }
+            if (expectedSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(expectedSize));
             }
 
-            using (CancellationTokenSource directTimeout =
-                   CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            var candidates = new List<(Uri Uri, string? Mirror)>
             {
-                directTimeout.CancelAfter(MirrorTimeout);
-                try
-                {
-                    using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
-                    HttpResponseMessage response = await client.SendAsync(
-                        probeRequest,
-                        HttpCompletionOption.ResponseHeadersRead,
-                        directTimeout.Token).ConfigureAwait(false);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        onMirror(null);
-                        return response;
-                    }
-
-                    response.Dispose();
-                }
-                catch (OperationCanceledException)
-                    when (!cancellationToken.IsCancellationRequested)
-                {
-                }
-                catch (HttpRequestException)
-                {
-                }
-            }
-
-            if (IsGitHubUrl(url))
+                (new Uri(url), null)
+            };
+            if (IsEnabled)
             {
-                // Selected mirror first, then the rest of the presets, de-duplicated so
-                // a custom URL or picked preset is preferred but never blocks fail-over.
-                var candidates = new List<string>();
+                var mirrors = new List<string>();
                 string selected = SelectedMirror;
                 if (selected.Length > 0)
                 {
-                    candidates.Add(selected);
-                }
-                foreach (string m in Mirrors)
-                {
-                    if (!candidates.Contains(m))
-                    {
-                        candidates.Add(m);
-                    }
+                    mirrors.Add(selected);
                 }
 
-                foreach (string mirror in candidates)
+                foreach (string mirror in Mirrors)
                 {
-                    using CancellationTokenSource cts =
-                        CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    cts.CancelAfter(MirrorTimeout);
-
-                    Uri mirroredUri = GitHubUrlRouting.BuildMirroredUri(
-                        mirror,
-                        new Uri(url));
-                    using var mirrored = new HttpRequestMessage(HttpMethod.Get, mirroredUri);
-
-                    HttpResponseMessage response;
-                    try
+                    if (!mirrors.Contains(mirror))
                     {
-                        response = await client.SendAsync(mirrored, HttpCompletionOption.ResponseHeadersRead, cts.Token)
-                            .ConfigureAwait(false);
+                        mirrors.Add(mirror);
                     }
-                    catch (OperationCanceledException)
-                        when (!cancellationToken.IsCancellationRequested)
-                    {
-                        // Per-mirror timeout — try the next candidate.
-                        continue;
-                    }
-                    catch (HttpRequestException)
-                    {
-                        // DNS failure, timeout, connection refused — try the next mirror.
-                        continue;
-                    }
+                }
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        onMirror(mirror);
-                        return response;
-                    }
-
-                    // 4xx/5xx from the mirror: move on, but free this response.
-                    response.Dispose();
+                foreach (string mirror in mirrors)
+                {
+                    candidates.Add((
+                        GitHubUrlRouting.BuildMirroredUri(
+                            mirror,
+                            new Uri(url)),
+                        mirror));
                 }
             }
 
-            // All fallbacks failed. Retry GitHub without the short probe timeout so
-            // the caller receives the authoritative response/error.
-            onMirror(null);
-            using var retryRequest = new HttpRequestMessage(HttpMethod.Get, url);
-            return await client.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
+            Exception? lastFailure = null;
+            foreach ((Uri candidateUri, string? mirror) in candidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                TryDeletePartialFile(destinationPath);
+                try
+                {
+                    using CancellationTokenSource headerTimeout =
+                        CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken);
+                    headerTimeout.CancelAfter(MirrorTimeout);
+                    using var request = new HttpRequestMessage(
+                        HttpMethod.Get,
+                        candidateUri);
+                    using HttpResponseMessage response = await client.SendAsync(
+                        request,
+                        HttpCompletionOption.ResponseHeadersRead,
+                        headerTimeout.Token).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        lastFailure = new HttpRequestException(
+                            $"下载源返回 HTTP {(int)response.StatusCode}");
+                        continue;
+                    }
+                    if (response.Content.Headers.ContentLength is long contentLength &&
+                        contentLength != expectedSize)
+                    {
+                        lastFailure = new InvalidDataException(
+                            $"下载源声明的文件大小不正确：{contentLength}");
+                        continue;
+                    }
+
+                    onMirror(mirror);
+                    using CancellationTokenSource transferTimeout =
+                        CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken);
+                    transferTimeout.CancelAfter(TransferTimeout);
+                    await CopyResponseToFileAsync(
+                        response,
+                        destinationPath,
+                        expectedSize,
+                        transferTimeout.Token).ConfigureAwait(false);
+                    await validate(destinationPath, transferTimeout.Token)
+                        .ConfigureAwait(false);
+                    return;
+                }
+                catch (OperationCanceledException ex)
+                    when (!cancellationToken.IsCancellationRequested)
+                {
+                    lastFailure = new IOException(
+                        "下载源连接或传输超时",
+                        ex);
+                }
+                catch (Exception ex) when (
+                    ex is HttpRequestException or IOException or InvalidDataException)
+                {
+                    lastFailure = ex;
+                }
+            }
+
+            TryDeletePartialFile(destinationPath);
+            throw new HttpRequestException(
+                "GitHub 及已配置的下载代理均未能提供完整、有效的更新文件",
+                lastFailure);
+        }
+
+        private static async Task CopyResponseToFileAsync(
+            HttpResponseMessage response,
+            string destinationPath,
+            long expectedSize,
+            CancellationToken cancellationToken)
+        {
+            await using Stream remote = await response.Content.ReadAsStreamAsync(
+                cancellationToken).ConfigureAwait(false);
+            await using FileStream local = new FileStream(
+                destinationPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                81920,
+                useAsync: true);
+
+            byte[] buffer = new byte[81920];
+            long totalBytes = 0;
+            while (true)
+            {
+                using CancellationTokenSource stallTimeout =
+                    CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken);
+                stallTimeout.CancelAfter(TransferStallTimeout);
+                int maximumRead = (int)Math.Min(
+                    buffer.Length,
+                    expectedSize - totalBytes + 1);
+                int bytesRead = await remote.ReadAsync(
+                    buffer.AsMemory(0, maximumRead),
+                    stallTimeout.Token).ConfigureAwait(false);
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                totalBytes += bytesRead;
+                if (totalBytes > expectedSize)
+                {
+                    throw new InvalidDataException(
+                        "下载源返回的数据超过官方 Release 声明的文件大小");
+                }
+
+                await local.WriteAsync(
+                    buffer.AsMemory(0, bytesRead),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            await local.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private static void TryDeletePartialFile(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException)
+            {
+            }
         }
     }
 }

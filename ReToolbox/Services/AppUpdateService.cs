@@ -151,33 +151,19 @@ namespace ReToolbox.Services
             try
             {
                 progress?.Report($"正在下载 {release.TagName}...");
-                using HttpResponseMessage response = await GitHubMirrorHelper.GetAsync(
+                await GitHubMirrorHelper.DownloadFileAsync(
                     _httpClient,
                     release.InstallerUri.AbsoluteUri,
+                    installerPath,
+                    release.InstallerSize,
+                    (path, token) => VerifyInstallerAsync(
+                        path,
+                        release,
+                        token),
                     mirror => progress?.Report(
                         mirror is null
                             ? "正在从 GitHub 下载更新..."
                             : $"正在通过 {mirror} 下载更新..."),
-                    cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                await using (Stream remote = await response.Content.ReadAsStreamAsync(
-                    cancellationToken).ConfigureAwait(false))
-                await using (FileStream local = new FileStream(
-                    installerPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None,
-                    81920,
-                    useAsync: true))
-                {
-                    await remote.CopyToAsync(local, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                await VerifyInstallerAsync(
-                    installerPath,
-                    release,
                     cancellationToken).ConfigureAwait(false);
                 progress?.Report("更新已下载并通过 SHA-256 校验");
                 return new DownloadedUpdate(release, installerPath);

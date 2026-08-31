@@ -9,6 +9,7 @@ namespace ReToolbox.Services
     public sealed class AppUpdateCoordinator
     {
         private readonly AppUpdateService _updateService;
+        private readonly SemaphoreSlim _runGate = new SemaphoreSlim(1, 1);
 
         public AppUpdateCoordinator(AppUpdateService updateService)
         {
@@ -48,6 +49,29 @@ namespace ReToolbox.Services
         }
 
         private async Task<string> CheckAndHandleAsync(
+            XamlRoot xamlRoot,
+            Action closeWindow,
+            IProgress<string>? progress,
+            bool showCheckFailure,
+            CancellationToken cancellationToken)
+        {
+            await _runGate.WaitAsync(cancellationToken).ConfigureAwait(true);
+            try
+            {
+                return await CheckAndHandleCoreAsync(
+                    xamlRoot,
+                    closeWindow,
+                    progress,
+                    showCheckFailure,
+                    cancellationToken).ConfigureAwait(true);
+            }
+            finally
+            {
+                _runGate.Release();
+            }
+        }
+
+        private async Task<string> CheckAndHandleCoreAsync(
             XamlRoot xamlRoot,
             Action closeWindow,
             IProgress<string>? progress,

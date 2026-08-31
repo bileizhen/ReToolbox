@@ -31,7 +31,7 @@ namespace ReToolbox
                     services.AddSingleton<PowerPlanService>();
                     services.AddSingleton<BatteryService>();
                     services.AddSingleton<AppUpdateService>();
-                    services.AddTransient<AppUpdateCoordinator>();
+                    services.AddSingleton<AppUpdateCoordinator>();
 
                     services.AddTransient<SoftwarePageViewModel>();
                     services.AddTransient<ActivationPageViewModel>();

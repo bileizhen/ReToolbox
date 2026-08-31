@@ -56,6 +56,10 @@ namespace ReToolbox.Views
                 when (lifetime.IsCancellationRequested)
             {
             }
+            catch (Exception ex)
+            {
+                ViewModel.ReportUpdateStatus($"检查更新失败：{ex.Message}");
+            }
             finally
             {
                 if (ReferenceEquals(_updateCheckLifetime, lifetime))
