@@ -47,10 +47,10 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid Width="78" Height="78" Margin="0,0,22,0">
-                        <Rectangle Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="#F3F3F3" />
-                        <Rectangle Width="36" Height="36" HorizontalAlignment="Right" VerticalAlignment="Top" Fill="#F3F3F3" />
-                        <Rectangle Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Bottom" Fill="#F3F3F3" />
-                        <Rectangle Width="36" Height="36" HorizontalAlignment="Right" VerticalAlignment="Bottom" Fill="#F3F3F3" />
+                        <Rectangle Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <Rectangle Width="36" Height="36" HorizontalAlignment="Right" VerticalAlignment="Top" Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <Rectangle Width="36" Height="36" HorizontalAlignment="Left" VerticalAlignment="Bottom" Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <Rectangle Width="36" Height="36" HorizontalAlignment="Right" VerticalAlignment="Bottom" Fill="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Grid>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="10">

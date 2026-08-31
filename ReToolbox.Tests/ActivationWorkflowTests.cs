@@ -53,6 +53,15 @@ public class ActivationWorkflowTests
     }
 
     [Fact]
+    public void WindowsMarkUsesThemeAwareForeground()
+    {
+        string page = File.ReadAllText(RepoFile("ReToolbox", "Views", "ActivationPage.xaml"));
+
+        Assert.DoesNotContain("Fill=\"#F3F3F3\"", page, StringComparison.Ordinal);
+        Assert.Equal(4, page.Split("Fill=\"{ThemeResource TextFillColorPrimaryBrush}\"", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
     public void OnlyLicensedPrimaryWindowsProductsCountAsActivated()
     {
         WindowsLicenseSnapshot[] licenses =
