@@ -117,34 +117,21 @@ namespace ReToolbox.Services
                 int count = 0;
                 foreach (DiskCleanupTarget target in rule.Targets)
                 {
-                    if (!IsAllowedTarget(target.Path) ||
-                        !Directory.Exists(target.Path) ||
-                        IsReparsePoint(target.Path))
+                    if (!TryGetSafeTarget(
+                            target,
+                            out string targetRoot,
+                            out DateTime cutoff))
                     {
                         continue;
                     }
 
-                    DateTime cutoff = DateTime.UtcNow - target.MinimumAge;
-                    foreach (string path in EnumerateFilesSafely(target.Path))
+                    foreach ((FileInfo File, long Length) candidate in EnumerateEligibleFiles(
+                                 targetRoot,
+                                 cutoff,
+                                 cancellationToken))
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        try
-                        {
-                            var file = new FileInfo(path);
-                            if (!file.Exists ||
-                                file.LastWriteTimeUtc > cutoff ||
-                                (file.Attributes & FileAttributes.ReparsePoint) != 0)
-                            {
-                                continue;
-                            }
-
-                            size += file.Length;
-                            count++;
-                        }
-                        catch (Exception ex) when (
-                            ex is IOException or UnauthorizedAccessException or SecurityException)
-                        {
-                        }
+                        size += candidate.Length;
+                        count++;
                     }
                 }
 
@@ -186,33 +173,30 @@ namespace ReToolbox.Services
                 foreach (DiskCleanupTarget target in rule.Targets)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!IsAllowedTarget(target.Path) ||
-                        !Directory.Exists(target.Path) ||
-                        IsReparsePoint(target.Path))
+                    if (!TryGetSafeTarget(
+                            target,
+                            out string targetRoot,
+                            out DateTime cutoff))
                     {
                         continue;
                     }
 
-                    string targetRoot = Path.GetFullPath(target.Path);
-                    DateTime cutoff = DateTime.UtcNow - target.MinimumAge;
-                    foreach (string path in EnumerateFilesSafely(targetRoot))
+                    foreach ((FileInfo File, long Length) candidate in EnumerateEligibleFiles(
+                                 targetRoot,
+                                 cutoff,
+                                 cancellationToken))
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
                         try
                         {
-                            string fullPath = Path.GetFullPath(path);
-                            var file = new FileInfo(fullPath);
-                            if (!IsPathSafeForDeletion(fullPath, targetRoot) ||
-                                !file.Exists ||
-                                file.LastWriteTimeUtc > cutoff ||
-                                (file.Attributes & FileAttributes.ReparsePoint) != 0)
+                            if (!IsPathSafeForDeletion(
+                                    candidate.File.FullName,
+                                    targetRoot))
                             {
                                 continue;
                             }
 
-                            long length = file.Length;
-                            file.Delete();
-                            freedBytes += length;
+                            candidate.File.Delete();
+                            freedBytes += candidate.Length;
                             deletedFiles++;
                         }
                         catch (Exception ex) when (
@@ -235,11 +219,7 @@ namespace ReToolbox.Services
         private bool IsAllowedTarget(string path)
         {
             string target = Path.GetFullPath(path);
-            return _allowedRoots.Any(root =>
-                target.StartsWith(
-                    Path.TrimEndingDirectorySeparator(root) +
-                    Path.DirectorySeparatorChar,
-                    StringComparison.OrdinalIgnoreCase));
+            return _allowedRoots.Any(root => IsDescendantOf(target, root));
         }
 
         private static bool IsDescendantOf(string path, string root)
@@ -256,30 +236,85 @@ namespace ReToolbox.Services
         {
             string fullPath = Path.GetFullPath(path);
             string fullRoot = Path.GetFullPath(targetRoot);
-            if (!IsDescendantOf(fullPath, fullRoot) || IsReparsePoint(fullRoot))
-            {
-                return false;
-            }
+            return IsDescendantOf(fullPath, fullRoot) &&
+                   IsPathFreeOfReparsePoints(fullPath);
+        }
 
-            string? current = Path.GetDirectoryName(fullPath);
-            while (current is not null &&
-                   !current.Equals(fullRoot, StringComparison.OrdinalIgnoreCase))
+        private bool TryGetSafeTarget(
+            DiskCleanupTarget target,
+            out string targetRoot,
+            out DateTime cutoff)
+        {
+            targetRoot = Path.GetFullPath(target.Path);
+            cutoff = DateTime.UtcNow - target.MinimumAge;
+            return IsAllowedTarget(targetRoot) &&
+                   Directory.Exists(targetRoot) &&
+                   IsPathFreeOfReparsePoints(targetRoot);
+        }
+
+        private static IEnumerable<(FileInfo File, long Length)> EnumerateEligibleFiles(
+            string targetRoot,
+            DateTime cutoff,
+            CancellationToken cancellationToken)
+        {
+            foreach (string path in EnumerateFilesSafely(targetRoot))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                FileInfo? file = null;
+                long length = 0;
+                bool isEligible = false;
+                try
+                {
+                    file = new FileInfo(path);
+                    if (!file.Exists ||
+                        file.LastWriteTimeUtc > cutoff ||
+                        (file.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        continue;
+                    }
+
+                    length = file.Length;
+                    isEligible = true;
+                }
+                catch (Exception ex) when (
+                    ex is IOException or UnauthorizedAccessException or SecurityException)
+                {
+                }
+
+                if (isEligible && file is not null)
+                {
+                    yield return (file, length);
+                }
+            }
+        }
+
+        private static bool IsPathFreeOfReparsePoints(string path)
+        {
+            string? current = Path.GetFullPath(path);
+            while (current is not null)
             {
                 if (IsReparsePoint(current))
                 {
                     return false;
                 }
 
-                current = Path.GetDirectoryName(current);
+                current = Path.GetDirectoryName(
+                    Path.TrimEndingDirectorySeparator(current));
             }
 
-            return current is not null;
+            return true;
         }
 
         private static void DeleteEmptyDirectories(
             string targetRoot,
             CancellationToken cancellationToken)
         {
+            if (!Directory.Exists(targetRoot) ||
+                !IsPathFreeOfReparsePoints(targetRoot))
+            {
+                return;
+            }
+
             IEnumerable<string> directories;
             try
             {
@@ -301,7 +336,7 @@ namespace ReToolbox.Services
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    if (!IsReparsePoint(directory) &&
+                    if (IsPathFreeOfReparsePoints(directory) &&
                         !Directory.EnumerateFileSystemEntries(directory).Any())
                     {
                         Directory.Delete(directory, recursive: false);

@@ -143,6 +143,32 @@ public sealed class DiskCleanupWorkflowTests : IDisposable
         Assert.Equal(2, item.SizeBytes);
     }
 
+    [Fact]
+    public async Task AncestorReparsePointIsNeverScannedOrCleaned()
+    {
+        string allowedRoot = Path.Combine(_sandbox, "allowed");
+        string actualParent = Path.Combine(_sandbox, "actual");
+        string actualCache = Path.Combine(actualParent, "cache");
+        string linkedParent = Path.Combine(allowedRoot, "linked-parent");
+        string linkedCache = Path.Combine(linkedParent, "cache");
+        Directory.CreateDirectory(allowedRoot);
+        Directory.CreateDirectory(actualCache);
+        string protectedFile = Path.Combine(actualCache, "keep.tmp");
+        await File.WriteAllBytesAsync(protectedFile, new byte[] { 1, 2, 3 });
+        Directory.CreateSymbolicLink(linkedParent, actualParent);
+
+        var service = new DiskCleanupService(
+            new[] { Rule("linked", linkedCache) },
+            new[] { allowedRoot });
+
+        Assert.Empty(await service.ScanAsync());
+        DiskCleanupRunResult result = await service.CleanAsync(
+            new[] { "linked" });
+
+        Assert.Equal(0, result.DeletedFiles);
+        Assert.True(File.Exists(protectedFile));
+    }
+
     private static DiskCleanupRule Rule(string id, string path)
     {
         return new DiskCleanupRule(
