@@ -71,6 +71,7 @@
                     Icon="Home"
                     Content="主页"
                     Tag="ReToolbox.Views.HomePage" />
+                <NavigationViewItemSeparator />
                 <NavigationViewItem x:Name="SystemInfo" Content="系统信息" Tag="ReToolbox.Views.SystemInfoPage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE950;" />

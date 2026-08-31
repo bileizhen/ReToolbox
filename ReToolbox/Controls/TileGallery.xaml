@@ -42,7 +42,7 @@
                     <local:HeaderTile
                         Title="加入 QQ 群"
                         Description="点击加入 ReToolbox QQ 群"
-                        ExternalLink="https://qm.qq.com/q/fIB3PRWZmo">
+                        ExternalLink="https://qm.qq.com/q/9WKgjRJIqs">
                         <local:HeaderTile.Source>
                             <Image Source="..\assets\logo\qq.png" />
                         </local:HeaderTile.Source>
@@ -51,7 +51,7 @@
                     <local:HeaderTile
                         Title="GitHub"
                         Description="探索 ReToolBox 代码并做出贡献"
-                        ExternalLink="https://github.com/bileizhen">
+                        ExternalLink="https://github.com/bileizhen/ReToolbox">
                         <local:HeaderTile.Source>
                             <PathIcon Data="{StaticResource GitHubIconPath}" Foreground="{ThemeResource TextFillColorPrimaryBrush}">
                                 <PathIcon.RenderTransform>
