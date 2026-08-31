@@ -158,6 +158,7 @@
                                     <ToggleSwitch
                                         Grid.Column="2"
                                         AutomationProperties.Name="启动时检查更新"
+                                        MinWidth="0"
                                         IsOn="{x:Bind ViewModel.CheckUpdatesOnStartup, Mode=TwoWay}" />
                                 </Grid>
                                 <Border Height="1" Margin="16,0" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
@@ -180,6 +181,7 @@
                                     <ToggleSwitch
                                         Grid.Column="2"
                                         AutomationProperties.Name="自动下载更新"
+                                        MinWidth="0"
                                         IsEnabled="{x:Bind ViewModel.CheckUpdatesOnStartup, Mode=OneWay}"
                                         IsOn="{x:Bind ViewModel.AutomaticUpdateEnabled, Mode=TwoWay}" />
                                 </Grid>
@@ -217,6 +219,7 @@
                                     <ToggleSwitch
                                         Grid.Column="2"
                                         AutomationProperties.Name="启用 GitHub 下载代理"
+                                        MinWidth="0"
                                         IsOn="{x:Bind ViewModel.IsGitHubMirrorEnabled, Mode=TwoWay}" />
                                 </Grid>
                                 <Border Height="1" Margin="16,0" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
