@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using ReToolbox.Services;
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
@@ -17,9 +16,12 @@ namespace ReToolbox
     {
         private bool _startupUpdateCheckStarted;
         private readonly CancellationTokenSource _windowLifetime = new();
+        private readonly DiagnosticLogService _diagnosticLog;
 
         public MainWindow()
         {
+            _diagnosticLog =
+                App.Services.GetRequiredService<DiagnosticLogService>();
             this.InitializeComponent();
             this.ExtendsContentIntoTitleBar = true;
             this.SetTitleBar(AppTitleBar);
@@ -37,6 +39,9 @@ namespace ReToolbox
             RootGrid.Loaded += RootGrid_Loaded;
             Closed += (_, _) =>
             {
+                _diagnosticLog.WriteInformation(
+                    "Application",
+                    "主窗口已关闭");
                 _windowLifetime.Cancel();
                 _windowLifetime.Dispose();
             };
@@ -69,7 +74,10 @@ namespace ReToolbox
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Startup update check failed: {ex}");
+                _diagnosticLog.WriteError(
+                    "Updater",
+                    "启动时检查更新失败",
+                    ex);
             }
         }
 

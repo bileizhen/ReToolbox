@@ -21,6 +21,7 @@
     <Compile Include="..\ReToolbox\Services\EdgeRemovalWorkflow.cs" Link="EdgeRemovalWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\DiskCleanupWorkflow.cs" Link="DiskCleanupWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\DiskCleanupService.cs" Link="DiskCleanupService.cs" />
+    <Compile Include="..\ReToolbox\Services\DiagnosticLogService.cs" Link="DiagnosticLogService.cs" />
     <Compile Include="..\ReToolbox\Services\GitHubReleaseWorkflow.cs" Link="GitHubReleaseWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\SoftwareCatalog.cs" Link="SoftwareCatalog.cs" />
     <Compile Include="..\ReToolbox\Services\UpdateWorkflow.cs" Link="UpdateWorkflow.cs" />

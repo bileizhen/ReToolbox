@@ -55,7 +55,7 @@
                 Spacing="14">
                 <StackPanel Spacing="4">
                     <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="设置" />
-                    <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="管理更新方式、下载网络与应用信息" />
+                    <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="管理更新方式、下载网络、诊断反馈与应用信息" />
                 </StackPanel>
 
                 <Border Padding="18" Style="{StaticResource SettingsSurfaceStyle}">
@@ -241,6 +241,60 @@
                         </Border>
                     </StackPanel>
                 </Grid>
+
+                <StackPanel Margin="0,2,0,0" Spacing="8">
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="诊断与反馈" />
+                        <TextBlock Style="{StaticResource SecondaryTextStyle}" Text="收集最近 7 天的应用运行信息，帮助定位更新和安装问题" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SettingsSurfaceStyle}">
+                        <Grid Padding="16,14" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon
+                                Width="28"
+                                VerticalAlignment="Center"
+                                FontSize="18"
+                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                Glyph="&#xE9D9;" />
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Style="{StaticResource SettingTitleStyle}" Text="诊断日志" />
+                                <TextBlock
+                                    Style="{StaticResource SecondaryTextStyle}"
+                                    Text="自动记录应用启动、更新、软件安装和异常；导出时会隐藏用户名与用户目录。" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    Text="{x:Bind DiagnosticLogDirectory, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTipService.ToolTip="{x:Bind DiagnosticLogDirectory, Mode=OneWay}" />
+                            </StackPanel>
+                            <StackPanel
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                                <Button
+                                    AutomationProperties.Name="打开诊断日志目录"
+                                    Click="OpenDiagnosticLogs_Click"
+                                    Content="打开日志目录" />
+                                <Button
+                                    x:Name="ExportDiagnosticsButton"
+                                    AutomationProperties.Name="导出 ReToolbox 诊断包"
+                                    Click="ExportDiagnostics_Click"
+                                    Content="导出诊断包"
+                                    Style="{StaticResource AccentButtonStyle}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <InfoBar
+                        x:Name="DiagnosticStatusInfoBar"
+                        IsOpen="False"
+                        IsClosable="True" />
+                </StackPanel>
 
                 <StackPanel Margin="0,2,0,0" Spacing="8">
                     <StackPanel Spacing="2">

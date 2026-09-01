@@ -17,11 +17,14 @@ namespace ReToolbox.Services
     {
         private readonly List<SoftwareItem> _softwareItems;
         private readonly GitHubReleaseDownloadService _gitHubReleaseDownloadService;
+        private readonly DiagnosticLogService _diagnosticLog;
 
         public SoftwareInstallService(
-            GitHubReleaseDownloadService gitHubReleaseDownloadService)
+            GitHubReleaseDownloadService gitHubReleaseDownloadService,
+            DiagnosticLogService diagnosticLog)
         {
             _gitHubReleaseDownloadService = gitHubReleaseDownloadService;
+            _diagnosticLog = diagnosticLog;
             _softwareItems = GetDefaultSoftwareList();
         }
 
@@ -33,6 +36,9 @@ namespace ReToolbox.Services
             IProgress<int>? downloadProgress = null,
             CancellationToken cancellationToken = default)
         {
+            _diagnosticLog.WriteInformation(
+                "Software",
+                $"开始处理软件安装：{software.Name}");
             progress?.Report(LogEntry.Normal($"正在安装 {software.Name}..."));
 
             SoftwareInstallResult result;
@@ -80,6 +86,10 @@ namespace ReToolbox.Services
                     ex is HttpRequestException or IOException or InvalidDataException or
                     TaskCanceledException)
                 {
+                    _diagnosticLog.WriteError(
+                        "Software",
+                        $"{software.Name} Release 下载失败",
+                        ex);
                     result = new SoftwareInstallResult(
                         SoftwareInstallOutcome.Failed,
                         $"{software.Name} Release 下载失败：{ex.Message}");
@@ -111,6 +121,9 @@ namespace ReToolbox.Services
             }
 
             progress?.Report(LogEntry.Normal(result.Message));
+            _diagnosticLog.WriteInformation(
+                "Software",
+                $"{result.Outcome}：{result.Message}");
             return result;
         }
 

@@ -9,11 +9,15 @@ namespace ReToolbox.Services
     public sealed class AppUpdateCoordinator
     {
         private readonly AppUpdateService _updateService;
+        private readonly DiagnosticLogService _diagnosticLog;
         private readonly SemaphoreSlim _runGate = new SemaphoreSlim(1, 1);
 
-        public AppUpdateCoordinator(AppUpdateService updateService)
+        public AppUpdateCoordinator(
+            AppUpdateService updateService,
+            DiagnosticLogService diagnosticLog)
         {
             _updateService = updateService;
+            _diagnosticLog = diagnosticLog;
         }
 
         public async Task RunStartupAsync(
@@ -78,10 +82,16 @@ namespace ReToolbox.Services
             bool showCheckFailure,
             CancellationToken cancellationToken)
         {
+            _diagnosticLog.WriteInformation(
+                "Updater",
+                showCheckFailure
+                    ? "开始手动检查更新"
+                    : "开始启动时检查更新");
             progress?.Report("正在检查更新...");
             UpdateCheckResult check = await _updateService.CheckForUpdatesAsync(
                 cancellationToken).ConfigureAwait(true);
             progress?.Report(check.Message);
+            _diagnosticLog.WriteInformation("Updater", check.Message);
 
             if (check.State == UpdateCheckState.Failed)
             {
@@ -126,6 +136,10 @@ namespace ReToolbox.Services
                 catch (Exception ex)
                 {
                     string detail = $"自动下载失败：{ex.Message}";
+                    _diagnosticLog.WriteError(
+                        "Updater",
+                        "自动下载更新失败",
+                        ex);
                     progress?.Report(detail);
                     await ShowAvailableUpdateAsync(
                         xamlRoot,
@@ -155,6 +169,9 @@ namespace ReToolbox.Services
                         downloaded,
                         cancellationToken).ConfigureAwait(true);
                     installerStarted = true;
+                    _diagnosticLog.WriteInformation(
+                        "Updater",
+                        $"已启动 {downloaded.Release.TagName} 安装程序");
                     closeWindow();
                     return $"已启动 {downloaded.Release.TagName} 安装程序";
                 }
@@ -166,6 +183,10 @@ namespace ReToolbox.Services
                 catch (Exception ex)
                 {
                     string message = $"无法启动更新安装器：{ex.Message}";
+                    _diagnosticLog.WriteError(
+                        "Updater",
+                        "无法启动更新安装器",
+                        ex);
                     await ShowErrorAsync(xamlRoot, message).ConfigureAwait(true);
                     return message;
                 }
