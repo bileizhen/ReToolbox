@@ -129,4 +129,33 @@ public class UpdateWorkflowTests
             Path.Combine(root, "Other", Path.GetFileName(owned)),
             root));
     }
+
+    [Fact]
+    public void InstallerLaunchCopyIsPlacedBesideTheRunningApplication()
+    {
+        string applicationDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "ReToolbox-Installed");
+        Guid launchId = Guid.ParseExact(
+            "0123456789abcdef0123456789abcdef",
+            "N");
+
+        string launchPath = UpdateWorkflow.CreatePolicyCompatibleLaunchPath(
+            applicationDirectory,
+            launchId);
+
+        Assert.Equal(
+            Path.Combine(
+                Path.GetFullPath(applicationDirectory),
+                "ReToolbox-Update-0123456789abcdef0123456789abcdef.exe"),
+            launchPath);
+        Assert.True(UpdateWorkflow.IsOwnedLaunchCopy(
+            launchPath,
+            applicationDirectory));
+        Assert.False(UpdateWorkflow.IsOwnedLaunchCopy(
+            Path.Combine(
+                Path.GetTempPath(),
+                Path.GetFileName(launchPath)),
+            applicationDirectory));
+    }
 }

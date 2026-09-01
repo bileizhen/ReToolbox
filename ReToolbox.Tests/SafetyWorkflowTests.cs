@@ -45,6 +45,22 @@ public class SafetyWorkflowTests
         Assert.Contains("-t:Publish", script, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void UpdateInstallerIsNotLaunchedDirectlyFromProtectedStaging()
+    {
+        string source = File.ReadAllText(
+            RepoFile("ReToolbox", "Services", "AppUpdateService.cs"));
+
+        Assert.DoesNotContain(
+            "FileName = update.InstallerPath",
+            source,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "PreparePolicyCompatibleLaunchCopyAsync",
+            source,
+            StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("Microsoft.PowerToys")]
     [InlineData("7zip.7zip")]

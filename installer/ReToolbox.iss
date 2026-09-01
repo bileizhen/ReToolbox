@@ -1,5 +1,5 @@
 #define MyAppName "ReToolbox"
-#define MyAppVersion "1.6.7"
+#define MyAppVersion "1.6.8"
 #define MyAppPublisher "ReToolbox"
 #define MyAppExeName "ReToolbox.exe"
 #ifndef MyPublishDir

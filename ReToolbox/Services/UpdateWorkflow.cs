@@ -16,6 +16,7 @@ namespace ReToolbox.Services
     public static class UpdateWorkflow
     {
         public const string InstallerAssetName = "ReToolbox-Setup.exe";
+        private const string LaunchCopyPrefix = "ReToolbox-Update-";
 
         public static bool IsNewerRelease(string tagName, Version currentVersion)
         {
@@ -43,6 +44,46 @@ namespace ReToolbox.Services
                        name.StartsWith(prefix, StringComparison.Ordinal) &&
                        Guid.TryParseExact(
                            name[prefix.Length..],
+                           "N",
+                           out _);
+            }
+            catch (Exception ex) when (
+                ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return false;
+            }
+        }
+
+        public static string CreatePolicyCompatibleLaunchPath(
+            string applicationDirectory,
+            Guid launchId)
+        {
+            string root = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(applicationDirectory));
+            return Path.Combine(
+                root,
+                $"{LaunchCopyPrefix}{launchId:N}.exe");
+        }
+
+        public static bool IsOwnedLaunchCopy(
+            string filePath,
+            string applicationDirectory)
+        {
+            try
+            {
+                string root = Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(applicationDirectory));
+                string file = Path.GetFullPath(filePath);
+                string? parent = Path.GetDirectoryName(file);
+                string name = Path.GetFileNameWithoutExtension(file);
+                string extension = Path.GetExtension(file);
+
+                return parent is not null &&
+                       parent.Equals(root, StringComparison.OrdinalIgnoreCase) &&
+                       extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
+                       name.StartsWith(LaunchCopyPrefix, StringComparison.Ordinal) &&
+                       Guid.TryParseExact(
+                           name[LaunchCopyPrefix.Length..],
                            "N",
                            out _);
             }

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -39,6 +40,7 @@ namespace ReToolbox.Services
         public AppUpdateService()
         {
             CleanupStaleUpdateDirectories();
+            CleanupStaleLaunchCopies();
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(30)
@@ -184,15 +186,35 @@ namespace ReToolbox.Services
                 update.Release,
                 cancellationToken).ConfigureAwait(false);
 
-            ProcessStartInfo startInfo = new ProcessStartInfo
+            string launchCopyPath =
+                await PreparePolicyCompatibleLaunchCopyAsync(
+                    update,
+                    cancellationToken).ConfigureAwait(false);
+            try
             {
-                FileName = update.InstallerPath,
-                UseShellExecute = true,
-                Verb = "runas"
-            };
-            if (Process.Start(startInfo) is null)
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = launchCopyPath,
+                    WorkingDirectory = AppContext.BaseDirectory,
+                    UseShellExecute = true,
+                    Verb = "runas"
+                };
+                if (Process.Start(startInfo) is null)
+                {
+                    throw new InvalidOperationException("无法启动更新安装器");
+                }
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == 1260)
             {
-                throw new InvalidOperationException("无法启动更新安装器");
+                TryDeleteLaunchCopy(launchCopyPath);
+                throw new InvalidOperationException(
+                    "Windows 应用程序控制策略仍阻止更新安装器。当前安装包未数字签名，请从 GitHub 发布页手动下载，或由管理员将该版本加入允许策略。",
+                    ex);
+            }
+            catch
+            {
+                TryDeleteLaunchCopy(launchCopyPath);
+                throw;
             }
         }
 
@@ -257,6 +279,52 @@ namespace ReToolbox.Services
             }
         }
 
+        private static async Task<string> PreparePolicyCompatibleLaunchCopyAsync(
+            DownloadedUpdate update,
+            CancellationToken cancellationToken)
+        {
+            string launchCopyPath =
+                UpdateWorkflow.CreatePolicyCompatibleLaunchPath(
+                    AppContext.BaseDirectory,
+                    Guid.NewGuid());
+            try
+            {
+                await using (FileStream source = new FileStream(
+                                 update.InstallerPath,
+                                 FileMode.Open,
+                                 FileAccess.Read,
+                                 FileShare.Read,
+                                 81920,
+                                 useAsync: true))
+                await using (FileStream destination = new FileStream(
+                                 launchCopyPath,
+                                 FileMode.CreateNew,
+                                 FileAccess.Write,
+                                 FileShare.None,
+                                 81920,
+                                 useAsync: true))
+                {
+                    await source.CopyToAsync(
+                        destination,
+                        81920,
+                        cancellationToken).ConfigureAwait(false);
+                    await destination.FlushAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                await VerifyInstallerAsync(
+                    launchCopyPath,
+                    update.Release,
+                    cancellationToken).ConfigureAwait(false);
+                return launchCopyPath;
+            }
+            catch
+            {
+                TryDeleteLaunchCopy(launchCopyPath);
+                throw;
+            }
+        }
+
         private static string GetCommonApplicationData()
         {
             return Environment.GetFolderPath(
@@ -285,6 +353,25 @@ namespace ReToolbox.Services
             }
         }
 
+        private static void CleanupStaleLaunchCopies()
+        {
+            string applicationDirectory = AppContext.BaseDirectory;
+            try
+            {
+                foreach (string file in Directory.EnumerateFiles(
+                             applicationDirectory,
+                             "ReToolbox-Update-*.exe",
+                             SearchOption.TopDirectoryOnly))
+                {
+                    TryDeleteLaunchCopy(file);
+                }
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
         private static void TryDeleteStagingDirectory(string stagingDirectory)
         {
             if (UpdateWorkflow.IsOwnedUpdateDirectory(
@@ -302,6 +389,25 @@ namespace ReToolbox.Services
                 bool isReparsePoint =
                     (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0;
                 Directory.Delete(directory, recursive: !isReparsePoint);
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        private static void TryDeleteLaunchCopy(string path)
+        {
+            if (!UpdateWorkflow.IsOwnedLaunchCopy(
+                    path,
+                    AppContext.BaseDirectory))
+            {
+                return;
+            }
+
+            try
+            {
+                File.Delete(path);
             }
             catch (Exception ex) when (
                 ex is IOException or UnauthorizedAccessException)
