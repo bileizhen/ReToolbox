@@ -34,15 +34,30 @@ public sealed class DiagnosticLogServiceTests : IDisposable
     }
 
     [Fact]
+    public void StartingDiagnosticsImmediatelyCreatesTheWritableSessionLog()
+    {
+        var service = new DiagnosticLogService(_sandbox);
+
+        Assert.True(service.IsAvailable);
+        Assert.True(File.Exists(service.CurrentLogPath));
+        using FileStream writable = new FileStream(
+            service.CurrentLogPath,
+            FileMode.Open,
+            FileAccess.Write,
+            FileShare.ReadWrite);
+        Assert.True(writable.CanWrite);
+    }
+
+    [Fact]
     public void StartingDiagnosticsRemovesOnlyOwnedLogsOlderThanSevenDays()
     {
         Directory.CreateDirectory(_sandbox);
         string expiredLog = Path.Combine(
             _sandbox,
-            "ReToolbox-20200101-000000-100.log");
+            "ReToolbox-20200101-000000-100-0123456789abcdef0123456789abcdef.log");
         string recentLog = Path.Combine(
             _sandbox,
-            "ReToolbox-20200102-000000-101.log");
+            "ReToolbox-20200102-000000-101-fedcba9876543210fedcba9876543210.log");
         string unrelatedFile = Path.Combine(_sandbox, "support.log");
         File.WriteAllText(expiredLog, "expired");
         File.WriteAllText(recentLog, "recent");

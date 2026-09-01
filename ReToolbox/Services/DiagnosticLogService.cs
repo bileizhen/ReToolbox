@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -38,12 +39,14 @@ namespace ReToolbox.Services
             string preferredLogDirectory,
             string fallbackLogDirectory)
         {
-            if (!TryPrepareLogDirectory(
+            if (!TryInitializeLogDirectory(
                     preferredLogDirectory,
-                    out string logDirectory) &&
-                !TryPrepareLogDirectory(
+                    out string logDirectory,
+                    out string currentLogPath) &&
+                !TryInitializeLogDirectory(
                     fallbackLogDirectory,
-                    out logDirectory))
+                    out logDirectory,
+                    out currentLogPath))
             {
                 LogDirectory = string.Empty;
                 CurrentLogPath = string.Empty;
@@ -51,9 +54,7 @@ namespace ReToolbox.Services
             }
 
             LogDirectory = logDirectory;
-            CurrentLogPath = Path.Combine(
-                LogDirectory,
-                $"ReToolbox-{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}.log");
+            CurrentLogPath = currentLogPath;
             CleanupExpiredLogs();
         }
 
@@ -115,16 +116,8 @@ namespace ReToolbox.Services
                            ZipArchiveMode.Create,
                            leaveOpen: false))
                 {
-                    foreach (string logPath in Directory.EnumerateFiles(
-                                 LogDirectory,
-                                 "ReToolbox-*.log",
-                                 SearchOption.TopDirectoryOnly))
+                    foreach (string logPath in EnumerateOwnedLogPaths())
                     {
-                        if (!IsOwnedLogPath(logPath) || IsReparsePoint(logPath))
-                        {
-                            continue;
-                        }
-
                         cancellationToken.ThrowIfCancellationRequested();
                         archive.CreateEntryFromFile(
                             logPath,
@@ -254,11 +247,13 @@ namespace ReToolbox.Services
             }
         }
 
-        private static bool TryPrepareLogDirectory(
+        private static bool TryInitializeLogDirectory(
             string path,
-            out string logDirectory)
+            out string logDirectory,
+            out string currentLogPath)
         {
             logDirectory = string.Empty;
+            currentLogPath = string.Empty;
             if (string.IsNullOrWhiteSpace(path))
             {
                 return false;
@@ -268,6 +263,15 @@ namespace ReToolbox.Services
             {
                 logDirectory = Path.GetFullPath(path);
                 Directory.CreateDirectory(logDirectory);
+                currentLogPath = Path.Combine(
+                    logDirectory,
+                    $"ReToolbox-{DateTime.Now:yyyyMMdd-HHmmss}-" +
+                    $"{Environment.ProcessId}-{Guid.NewGuid():N}.log");
+                using FileStream sessionLog = new FileStream(
+                    currentLogPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.Read);
                 return true;
             }
             catch (Exception ex) when (
@@ -275,7 +279,21 @@ namespace ReToolbox.Services
                 ArgumentException or NotSupportedException or
                 PathTooLongException or SecurityException)
             {
+                if (currentLogPath.Length > 0)
+                {
+                    try
+                    {
+                        File.Delete(currentLogPath);
+                    }
+                    catch (Exception cleanupException) when (
+                        cleanupException is IOException or
+                        UnauthorizedAccessException)
+                    {
+                    }
+                }
+
                 logDirectory = string.Empty;
+                currentLogPath = string.Empty;
                 return false;
             }
         }
@@ -285,14 +303,9 @@ namespace ReToolbox.Services
             DateTime cutoffUtc = DateTime.UtcNow.AddDays(-7);
             try
             {
-                foreach (string path in Directory.EnumerateFiles(
-                             LogDirectory,
-                             "ReToolbox-*.log",
-                             SearchOption.TopDirectoryOnly))
+                foreach (string path in EnumerateOwnedLogPaths())
                 {
-                    if (IsOwnedLogPath(path) &&
-                        !IsReparsePoint(path) &&
-                        File.GetLastWriteTimeUtc(path) < cutoffUtc)
+                    if (File.GetLastWriteTimeUtc(path) < cutoffUtc)
                     {
                         File.Delete(path);
                     }
@@ -302,6 +315,20 @@ namespace ReToolbox.Services
                 ex is IOException or UnauthorizedAccessException)
             {
                 // Retention cleanup is best effort.
+            }
+        }
+
+        private IEnumerable<string> EnumerateOwnedLogPaths()
+        {
+            foreach (string path in Directory.EnumerateFiles(
+                         LogDirectory,
+                         "ReToolbox-*.log",
+                         SearchOption.TopDirectoryOnly))
+            {
+                if (IsOwnedLogPath(path) && !IsReparsePoint(path))
+                {
+                    yield return path;
+                }
             }
         }
 
@@ -326,8 +353,10 @@ namespace ReToolbox.Services
                 }
 
                 string identity = fileName[prefix.Length..];
-                return identity.Length >= 17 &&
+                int processIdSeparator = identity.IndexOf('-', 16);
+                return identity.Length >= 50 &&
                        identity[15] == '-' &&
+                       processIdSeparator > 16 &&
                        DateTime.TryParseExact(
                            identity[..15],
                            "yyyyMMdd-HHmmss",
@@ -335,11 +364,15 @@ namespace ReToolbox.Services
                            DateTimeStyles.None,
                            out _) &&
                        int.TryParse(
-                           identity[16..],
+                           identity[16..processIdSeparator],
                            NumberStyles.None,
                            CultureInfo.InvariantCulture,
                            out int processId) &&
-                       processId > 0;
+                       processId > 0 &&
+                       Guid.TryParseExact(
+                           identity[(processIdSeparator + 1)..],
+                           "N",
+                           out _);
             }
             catch (Exception ex) when (
                 ex is ArgumentException or NotSupportedException or PathTooLongException)
