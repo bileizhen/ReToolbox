@@ -8,7 +8,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4)](#)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](#)
-[![Version](https://img.shields.io/badge/version-1.6.8-2EA44F)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.6.9-2EA44F)](../../releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE.txt)
 
 </div>
@@ -16,7 +16,7 @@
 ---
 
 <p>
-  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.6.8-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
+  <a href="../../releases"><img src="https://img.shields.io/badge/version-1.6.9-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Version"/></a>
   <a href="../../releases"><img src="https://img.shields.io/badge/download-Setup.exe-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="Download"/></a>
   <a href="./LICENSE.txt"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="License"/></a>
   <a href="#-从源码构建-build-from-source"><img src="https://img.shields.io/badge/build-passing-2EA44F?style=for-the-badge&logo=appveyor&logoColor=white" alt="Build"/></a>
@@ -137,7 +137,7 @@
 |  🔑  | **系统激活**      | 系统激活相关工具                                                                                                      |
 |  🌐  | **管理 Edge**     | 管理 Microsoft Edge 浏览器                                                                                            |
 |  🛡️  | **管理 Defender** | 管理 Microsoft Defender 安全中心                                                                                      |
-|  ⚙️  | **设置**          | 启动检查更新、自动下载已验证的新版本，并支持 GitHub Proxy 加速                                                       |
+|  ⚙️  | **设置**          | 启动检查更新、自动下载已验证的新版本、GitHub Proxy 加速，以及诊断日志与脱敏反馈包导出                                |
 
 <a id="-下载与安装"></a>
 
