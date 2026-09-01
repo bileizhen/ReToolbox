@@ -287,7 +287,9 @@ namespace ReToolbox.Services
                     }
                     catch (Exception cleanupException) when (
                         cleanupException is IOException or
-                        UnauthorizedAccessException)
+                        UnauthorizedAccessException or
+                        ArgumentException or NotSupportedException or
+                        PathTooLongException or SecurityException)
                     {
                     }
                 }
