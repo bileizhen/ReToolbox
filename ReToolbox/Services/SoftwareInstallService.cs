@@ -37,7 +37,7 @@ namespace ReToolbox.Services
             CancellationToken cancellationToken = default)
         {
             _diagnosticLog.WriteInformation(
-                "Software",
+                DiagnosticLogSource.Software,
                 $"开始处理软件安装：{software.Name}");
             progress?.Report(LogEntry.Normal($"正在安装 {software.Name}..."));
 
@@ -87,7 +87,7 @@ namespace ReToolbox.Services
                     TaskCanceledException)
                 {
                     _diagnosticLog.WriteError(
-                        "Software",
+                        DiagnosticLogSource.Software,
                         $"{software.Name} Release 下载失败",
                         ex);
                     result = new SoftwareInstallResult(
@@ -122,7 +122,7 @@ namespace ReToolbox.Services
 
             progress?.Report(LogEntry.Normal(result.Message));
             _diagnosticLog.WriteInformation(
-                "Software",
+                DiagnosticLogSource.Software,
                 $"{result.Outcome}：{result.Message}");
             return result;
         }

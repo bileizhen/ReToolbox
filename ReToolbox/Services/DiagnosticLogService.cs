@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -11,23 +12,45 @@ using System.Threading.Tasks;
 
 namespace ReToolbox.Services
 {
+    public enum DiagnosticLogSource
+    {
+        Application,
+        Updater,
+        Software,
+        Diagnostics
+    }
+
     public sealed class DiagnosticLogService
     {
         private readonly object _writeGate = new object();
 
         public DiagnosticLogService()
-            : this(Path.Combine(
-                Environment.GetFolderPath(
-                    Environment.SpecialFolder.LocalApplicationData),
-                "ReToolbox",
-                "Logs"))
+            : this(GetDefaultLogDirectory(), GetFallbackLogDirectory())
         {
         }
 
         internal DiagnosticLogService(string logDirectory)
+            : this(logDirectory, GetFallbackLogDirectory())
         {
-            LogDirectory = Path.GetFullPath(logDirectory);
-            Directory.CreateDirectory(LogDirectory);
+        }
+
+        internal DiagnosticLogService(
+            string preferredLogDirectory,
+            string fallbackLogDirectory)
+        {
+            if (!TryPrepareLogDirectory(
+                    preferredLogDirectory,
+                    out string logDirectory) &&
+                !TryPrepareLogDirectory(
+                    fallbackLogDirectory,
+                    out logDirectory))
+            {
+                LogDirectory = string.Empty;
+                CurrentLogPath = string.Empty;
+                return;
+            }
+
+            LogDirectory = logDirectory;
             CurrentLogPath = Path.Combine(
                 LogDirectory,
                 $"ReToolbox-{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}.log");
@@ -38,13 +61,17 @@ namespace ReToolbox.Services
 
         public string CurrentLogPath { get; }
 
-        public void WriteInformation(string source, string message)
+        public bool IsAvailable => CurrentLogPath.Length > 0;
+
+        public void WriteInformation(
+            DiagnosticLogSource source,
+            string message)
         {
             WriteLine("INFO", source, message);
         }
 
         public void WriteError(
-            string source,
+            DiagnosticLogSource source,
             string message,
             Exception exception)
         {
@@ -55,6 +82,12 @@ namespace ReToolbox.Services
             string archivePath,
             CancellationToken cancellationToken = default)
         {
+            if (!IsAvailable)
+            {
+                throw new InvalidOperationException(
+                    "诊断日志目录不可用，无法创建诊断包");
+            }
+
             string destination = Path.GetFullPath(archivePath);
             string? destinationDirectory = Path.GetDirectoryName(destination);
             if (destinationDirectory is null)
@@ -135,10 +168,18 @@ namespace ReToolbox.Services
             }
         }
 
-        private void WriteLine(string level, string source, string message)
+        private void WriteLine(
+            string level,
+            DiagnosticLogSource source,
+            string message)
         {
+            if (!IsAvailable)
+            {
+                return;
+            }
+
             string line =
-                $"[{DateTimeOffset.Now:O}] [{level}] [{Redact(source)}] " +
+                $"[{DateTimeOffset.Now:O}] [{level}] [{source}] " +
                 $"{Redact(message)}{Environment.NewLine}";
             try
             {
@@ -177,6 +218,66 @@ namespace ReToolbox.Services
             }
 
             return redacted;
+        }
+
+        private static string GetDefaultLogDirectory()
+        {
+            try
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.LocalApplicationData),
+                    "ReToolbox",
+                    "Logs");
+            }
+            catch (Exception ex) when (
+                ex is ArgumentException or NotSupportedException or SecurityException)
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string GetFallbackLogDirectory()
+        {
+            try
+            {
+                return Path.Combine(
+                    Path.GetTempPath(),
+                    "ReToolbox",
+                    "Logs");
+            }
+            catch (Exception ex) when (
+                ex is IOException or ArgumentException or
+                NotSupportedException or SecurityException)
+            {
+                return string.Empty;
+            }
+        }
+
+        private static bool TryPrepareLogDirectory(
+            string path,
+            out string logDirectory)
+        {
+            logDirectory = string.Empty;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return false;
+            }
+
+            try
+            {
+                logDirectory = Path.GetFullPath(path);
+                Directory.CreateDirectory(logDirectory);
+                return true;
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException or
+                ArgumentException or NotSupportedException or
+                PathTooLongException or SecurityException)
+            {
+                logDirectory = string.Empty;
+                return false;
+            }
         }
 
         private void CleanupExpiredLogs()

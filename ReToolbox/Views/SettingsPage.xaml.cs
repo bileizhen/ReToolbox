@@ -65,7 +65,7 @@ namespace ReToolbox.Views
             catch (Exception ex)
             {
                 _diagnosticLog.WriteError(
-                    "Updater",
+                    DiagnosticLogSource.Updater,
                     "设置页手动检查更新失败",
                     ex);
                 ViewModel.ReportUpdateStatus($"检查更新失败：{ex.Message}");
@@ -89,9 +89,9 @@ namespace ReToolbox.Views
             try
             {
                 Directory.CreateDirectory(_diagnosticLog.LogDirectory);
-                OpenInExplorer(_diagnosticLog.LogDirectory);
+                StartExplorer(_diagnosticLog.LogDirectory);
                 _diagnosticLog.WriteInformation(
-                    "Diagnostics",
+                    DiagnosticLogSource.Diagnostics,
                     "用户打开了诊断日志目录");
                 ShowDiagnosticStatus(
                     InfoBarSeverity.Success,
@@ -101,7 +101,7 @@ namespace ReToolbox.Views
             catch (Exception ex)
             {
                 _diagnosticLog.WriteError(
-                    "Diagnostics",
+                    DiagnosticLogSource.Diagnostics,
                     "无法打开诊断日志目录",
                     ex);
                 ShowDiagnosticStatus(
@@ -128,18 +128,18 @@ namespace ReToolbox.Views
                     $"ReToolbox-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");
                 await _diagnosticLog.CreateFeedbackArchiveAsync(archivePath);
                 _diagnosticLog.WriteInformation(
-                    "Diagnostics",
+                    DiagnosticLogSource.Diagnostics,
                     $"诊断包已导出：{archivePath}");
-                SelectInExplorer(archivePath);
+                StartExplorer($"/select,{archivePath}");
                 ShowDiagnosticStatus(
                     InfoBarSeverity.Success,
-                    "诊断包已导出到桌面",
+                    "诊断包已导出",
                     archivePath);
             }
             catch (Exception ex)
             {
                 _diagnosticLog.WriteError(
-                    "Diagnostics",
+                    DiagnosticLogSource.Diagnostics,
                     "导出诊断包失败",
                     ex);
                 ShowDiagnosticStatus(
@@ -153,25 +153,14 @@ namespace ReToolbox.Views
             }
         }
 
-        private static void OpenInExplorer(string path)
+        private static void StartExplorer(string argument)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
                 FileName = "explorer.exe",
                 UseShellExecute = false
             };
-            startInfo.ArgumentList.Add(path);
-            Process.Start(startInfo);
-        }
-
-        private static void SelectInExplorer(string path)
-        {
-            ProcessStartInfo startInfo = new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                UseShellExecute = false
-            };
-            startInfo.ArgumentList.Add($"/select,{path}");
+            startInfo.ArgumentList.Add(argument);
             Process.Start(startInfo);
         }
 

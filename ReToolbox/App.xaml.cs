@@ -60,7 +60,7 @@ namespace ReToolbox
                 .Version?
                 .ToString(3) ?? "unknown";
             _diagnosticLog.WriteInformation(
-                "Application",
+                DiagnosticLogSource.Application,
                 $"ReToolbox v{version} 初始化完成");
         }
 
@@ -68,7 +68,9 @@ namespace ReToolbox
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            _diagnosticLog.WriteInformation("Application", "正在创建主窗口");
+            _diagnosticLog.WriteInformation(
+                DiagnosticLogSource.Application,
+                "正在创建主窗口");
             MainWindow = new MainWindow();
             MainWindow.Activate();
 
@@ -81,7 +83,7 @@ namespace ReToolbox
         {
             UnhandledException += (_, args) =>
                 _diagnosticLog.WriteError(
-                    "Application",
+                    DiagnosticLogSource.Application,
                     "发生未处理的 WinUI 异常",
                     args.Exception);
             AppDomain.CurrentDomain.UnhandledException += (_, args) =>
@@ -90,13 +92,13 @@ namespace ReToolbox
                     new InvalidOperationException(
                         args.ExceptionObject?.ToString() ?? "未知异常");
                 _diagnosticLog.WriteError(
-                    "Application",
+                    DiagnosticLogSource.Application,
                     "发生未处理的进程异常",
                     exception);
             };
             TaskScheduler.UnobservedTaskException += (_, args) =>
                 _diagnosticLog.WriteError(
-                    "Application",
+                    DiagnosticLogSource.Application,
                     "发生未观察的异步任务异常",
                     args.Exception);
         }

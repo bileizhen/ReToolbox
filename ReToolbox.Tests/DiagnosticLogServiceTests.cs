@@ -20,7 +20,7 @@ public sealed class DiagnosticLogServiceTests : IDisposable
         var service = new DiagnosticLogService(_sandbox);
 
         service.WriteError(
-            "Updater",
+            DiagnosticLogSource.Updater,
             $"无法打开 {Path.Combine(profile, "Downloads", "setup.exe")}（用户 {userName}）",
             new InvalidOperationException(
                 $"拒绝访问 {Path.Combine(profile, "AppData", "Local", "Temp")}。"));
@@ -63,7 +63,7 @@ public sealed class DiagnosticLogServiceTests : IDisposable
     {
         var service = new DiagnosticLogService(_sandbox);
         service.WriteError(
-            "Application",
+            DiagnosticLogSource.Application,
             $"启动失败：{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}",
             new InvalidOperationException("测试错误"));
         File.WriteAllText(
@@ -108,6 +108,53 @@ public sealed class DiagnosticLogServiceTests : IDisposable
         Assert.True(metadata.RootElement.TryGetProperty("architecture", out _));
         Assert.False(metadata.RootElement.TryGetProperty("userName", out _));
         Assert.False(metadata.RootElement.TryGetProperty("machineName", out _));
+    }
+
+    [Fact]
+    public void DiagnosticsFallsBackWhenThePreferredLogPathIsUnavailable()
+    {
+        Directory.CreateDirectory(_sandbox);
+        string unavailablePath = Path.Combine(_sandbox, "blocked");
+        string fallbackPath = Path.Combine(_sandbox, "fallback");
+        File.WriteAllText(unavailablePath, "this path is a file");
+
+        var service = new DiagnosticLogService(
+            unavailablePath,
+            fallbackPath);
+        service.WriteInformation(
+            DiagnosticLogSource.Application,
+            "fallback active");
+
+        Assert.True(service.IsAvailable);
+        Assert.Equal(Path.GetFullPath(fallbackPath), service.LogDirectory);
+        Assert.True(File.Exists(service.CurrentLogPath));
+        Assert.Contains(
+            "fallback active",
+            File.ReadAllText(service.CurrentLogPath),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DiagnosticsBecomesNoOpWhenAllLogPathsAreUnavailable()
+    {
+        Directory.CreateDirectory(_sandbox);
+        string unavailablePrimary = Path.Combine(_sandbox, "blocked-primary");
+        string unavailableFallback = Path.Combine(_sandbox, "blocked-fallback");
+        File.WriteAllText(unavailablePrimary, "file");
+        File.WriteAllText(unavailableFallback, "file");
+
+        var service = new DiagnosticLogService(
+            unavailablePrimary,
+            unavailableFallback);
+        Exception? writeFailure = Record.Exception(() =>
+            service.WriteInformation(
+                DiagnosticLogSource.Application,
+                "must not interrupt startup"));
+
+        Assert.False(service.IsAvailable);
+        Assert.Null(writeFailure);
+        Assert.Empty(service.LogDirectory);
+        Assert.Empty(service.CurrentLogPath);
     }
 
     public void Dispose()

@@ -83,7 +83,7 @@ namespace ReToolbox.Services
             CancellationToken cancellationToken)
         {
             _diagnosticLog.WriteInformation(
-                "Updater",
+                DiagnosticLogSource.Updater,
                 showCheckFailure
                     ? "开始手动检查更新"
                     : "开始启动时检查更新");
@@ -91,7 +91,9 @@ namespace ReToolbox.Services
             UpdateCheckResult check = await _updateService.CheckForUpdatesAsync(
                 cancellationToken).ConfigureAwait(true);
             progress?.Report(check.Message);
-            _diagnosticLog.WriteInformation("Updater", check.Message);
+            _diagnosticLog.WriteInformation(
+                DiagnosticLogSource.Updater,
+                check.Message);
 
             if (check.State == UpdateCheckState.Failed)
             {
@@ -137,7 +139,7 @@ namespace ReToolbox.Services
                 {
                     string detail = $"自动下载失败：{ex.Message}";
                     _diagnosticLog.WriteError(
-                        "Updater",
+                        DiagnosticLogSource.Updater,
                         "自动下载更新失败",
                         ex);
                     progress?.Report(detail);
@@ -170,7 +172,7 @@ namespace ReToolbox.Services
                         cancellationToken).ConfigureAwait(true);
                     installerStarted = true;
                     _diagnosticLog.WriteInformation(
-                        "Updater",
+                        DiagnosticLogSource.Updater,
                         $"已启动 {downloaded.Release.TagName} 安装程序");
                     closeWindow();
                     return $"已启动 {downloaded.Release.TagName} 安装程序";
@@ -184,7 +186,7 @@ namespace ReToolbox.Services
                 {
                     string message = $"无法启动更新安装器：{ex.Message}";
                     _diagnosticLog.WriteError(
-                        "Updater",
+                        DiagnosticLogSource.Updater,
                         "无法启动更新安装器",
                         ex);
                     await ShowErrorAsync(xamlRoot, message).ConfigureAwait(true);

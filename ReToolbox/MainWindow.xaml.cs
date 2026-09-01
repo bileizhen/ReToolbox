@@ -40,7 +40,7 @@ namespace ReToolbox
             Closed += (_, _) =>
             {
                 _diagnosticLog.WriteInformation(
-                    "Application",
+                    DiagnosticLogSource.Application,
                     "主窗口已关闭");
                 _windowLifetime.Cancel();
                 _windowLifetime.Dispose();
@@ -75,7 +75,7 @@ namespace ReToolbox
             catch (Exception ex)
             {
                 _diagnosticLog.WriteError(
-                    "Updater",
+                    DiagnosticLogSource.Updater,
                     "启动时检查更新失败",
                     ex);
             }
