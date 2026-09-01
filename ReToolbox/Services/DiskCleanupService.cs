@@ -224,9 +224,22 @@ namespace ReToolbox.Services
 
         private static bool IsDescendantOf(string path, string root)
         {
-            return Path.GetFullPath(path).StartsWith(
-                Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) +
-                Path.DirectorySeparatorChar,
+            string fullPath = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(path));
+            string fullRoot = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(root));
+            if (fullPath.Equals(
+                    fullRoot,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string rootPrefix = Path.EndsInDirectorySeparator(fullRoot)
+                ? fullRoot
+                : fullRoot + Path.DirectorySeparatorChar;
+            return fullPath.StartsWith(
+                rootPrefix,
                 StringComparison.OrdinalIgnoreCase);
         }
 

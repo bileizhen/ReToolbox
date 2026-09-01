@@ -9,6 +9,7 @@ using ReToolbox.Services;
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ReToolbox
 {
@@ -91,7 +92,10 @@ namespace ReToolbox
 
             if (args.IsSettingsSelected)
             {
-                ContentFrame.Navigate(typeof(Views.SettingsPage), null, transition);
+                NavigateSafely(
+                    typeof(Views.SettingsPage),
+                    "设置",
+                    transition);
             }
             else if (args.SelectedItemContainer != null)
             {
@@ -99,7 +103,11 @@ namespace ReToolbox
                 Type? pageType = navItemTag is null ? null : Type.GetType(navItemTag);
                 if (pageType != null)
                 {
-                    ContentFrame.Navigate(pageType, null, transition);
+                    NavigateSafely(
+                        pageType,
+                        args.SelectedItemContainer.Content?.ToString() ??
+                        pageType.Name,
+                        transition);
                 }
             }
         }
@@ -137,7 +145,62 @@ namespace ReToolbox
             Type? pageType = Type.GetType(pageTag);
             if (pageType != null)
             {
-                ContentFrame.Navigate(pageType);
+                NavigateSafely(pageType, pageType.Name);
+            }
+        }
+
+        private void NavigateSafely(
+            Type pageType,
+            string displayName,
+            NavigationTransitionInfo? transition = null)
+        {
+            try
+            {
+                bool navigated = transition is null
+                    ? ContentFrame.Navigate(pageType)
+                    : ContentFrame.Navigate(pageType, null, transition);
+                if (!navigated)
+                {
+                    throw new InvalidOperationException(
+                        $"Frame rejected navigation to {pageType.FullName}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _diagnosticLog.WriteError(
+                    DiagnosticLogSource.Application,
+                    $"导航到页面失败：{pageType.FullName}",
+                    ex);
+                _ = ShowNavigationFailureAsync(displayName);
+            }
+        }
+
+        private async Task ShowNavigationFailureAsync(string displayName)
+        {
+            try
+            {
+                if (RootGrid.XamlRoot is null)
+                {
+                    return;
+                }
+
+                ContentDialog dialog = new ContentDialog
+                {
+                    XamlRoot = RootGrid.XamlRoot,
+                    Title = "无法打开页面",
+                    Content =
+                        $"“{displayName}”页面加载失败。错误详情已写入诊断日志，可在设置中导出诊断包。",
+                    CloseButtonText = "关闭",
+                    DefaultButton = ContentDialogButton.Close
+                };
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                _diagnosticLog.WriteError(
+                    DiagnosticLogSource.Application,
+                    "显示页面加载失败提示时发生异常",
+                    ex);
             }
         }
 

@@ -92,6 +92,33 @@ public sealed class DiskCleanupWorkflowTests : IDisposable
     }
 
     [Fact]
+    public void CatalogAcceptsCleanupTargetDirectlyUnderVolumeRoot()
+    {
+        string volumeRoot = Path.GetPathRoot(_sandbox)!;
+        string directChild = Path.Combine(
+            volumeRoot,
+            "ReToolbox-Direct-Child-Cache");
+
+        Exception? failure = Record.Exception(() =>
+            new DiskCleanupService(
+                new[] { Rule("direct-child", directChild) },
+                new[] { volumeRoot }));
+
+        Assert.Null(failure);
+    }
+
+    [Fact]
+    public void CatalogRejectsCleanupTargetEqualToAllowedRoot()
+    {
+        string volumeRoot = Path.GetPathRoot(_sandbox)!;
+
+        Assert.Throws<ArgumentException>(() =>
+            new DiskCleanupService(
+                new[] { Rule("volume-root", volumeRoot) },
+                new[] { volumeRoot }));
+    }
+
+    [Fact]
     public void DefaultCatalogNeverRecommendsRecoverableContent()
     {
         IReadOnlyList<DiskCleanupRule> rules =
