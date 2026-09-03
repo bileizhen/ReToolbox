@@ -37,6 +37,9 @@ public class SoftwareCatalogTests
         Assert.Equal(
             @"^Office_Tool_with_runtime_.*_x64\.zip$",
             officeTool.GitHubRelease!.AssetNamePattern);
+        Assert.Equal(
+            @"^Office Tool Plus\.exe$",
+            officeTool.GitHubRelease.ExecutableNamePattern);
 
         SoftwareCatalogEntry uuRemote = SoftwareCatalog.Entries.Single(entry => entry.Name == "UU远程");
         Assert.Equal("NetEase.UURemote", uuRemote.WingetId);
@@ -51,6 +54,9 @@ public class SoftwareCatalogTests
         Assert.Equal(
             @"^Folia-Setup-.*\.exe$",
             foliaMajor.GitHubRelease!.AssetNamePattern);
+        Assert.Equal(
+            @"^Folia-Setup-.*\.exe$",
+            foliaMajor.GitHubRelease.ExecutableNamePattern);
     }
 
     [Fact]
@@ -117,5 +123,20 @@ public class SoftwareCatalogTests
             new Uri("http://www.kaspersky.com.cn/downloads/free-antivirus")));
         Assert.False(SoftwareCatalog.IsApprovedOfficialPage(
             new Uri("https://example.com/download.exe")));
+    }
+
+    [Fact]
+    public void OnlyCataloguedGitHubInstallersCanBeAutoStarted()
+    {
+        GitHubReleaseDownload officeTool = SoftwareCatalog.Entries
+            .Single(entry => entry.Name == "Office Tool Plus")
+            .GitHubRelease!;
+
+        Assert.True(SoftwareCatalog.IsApprovedGitHubRelease(officeTool));
+        Assert.False(SoftwareCatalog.IsApprovedGitHubRelease(
+            new GitHubReleaseDownload(
+                "unknown/repository",
+                @"^setup\.exe$",
+                @"^setup\.exe$")));
     }
 }

@@ -322,14 +322,18 @@ namespace ReToolbox.Services
 
         private IEnumerable<string> EnumerateOwnedLogPaths()
         {
-            foreach (string path in Directory.EnumerateFiles(
-                         LogDirectory,
-                         "ReToolbox-*.log",
-                         SearchOption.TopDirectoryOnly))
+            string[] patterns = { "ReToolbox-*.log", "activation-*.log" };
+            foreach (string pattern in patterns)
             {
-                if (IsOwnedLogPath(path) && !IsReparsePoint(path))
+                foreach (string path in Directory.EnumerateFiles(
+                             LogDirectory,
+                             pattern,
+                             SearchOption.TopDirectoryOnly))
                 {
-                    yield return path;
+                    if (IsOwnedLogPath(path) && !IsReparsePoint(path))
+                    {
+                        yield return path;
+                    }
                 }
             }
         }
@@ -341,46 +345,76 @@ namespace ReToolbox.Services
                 string fullPath = Path.GetFullPath(path);
                 string? parent = Path.GetDirectoryName(fullPath);
                 string fileName = Path.GetFileNameWithoutExtension(fullPath);
-                const string prefix = "ReToolbox-";
                 if (parent is null ||
                     !parent.Equals(
                         LogDirectory,
                         StringComparison.OrdinalIgnoreCase) ||
                     !Path.GetExtension(fullPath).Equals(
                         ".log",
-                        StringComparison.OrdinalIgnoreCase) ||
-                    !fileName.StartsWith(prefix, StringComparison.Ordinal))
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
 
-                string identity = fileName[prefix.Length..];
-                int processIdSeparator = identity.IndexOf('-', 16);
-                return identity.Length >= 50 &&
-                       identity[15] == '-' &&
-                       processIdSeparator > 16 &&
-                       DateTime.TryParseExact(
-                           identity[..15],
-                           "yyyyMMdd-HHmmss",
-                           CultureInfo.InvariantCulture,
-                           DateTimeStyles.None,
-                           out _) &&
-                       int.TryParse(
-                           identity[16..processIdSeparator],
-                           NumberStyles.None,
-                           CultureInfo.InvariantCulture,
-                           out int processId) &&
-                       processId > 0 &&
-                       Guid.TryParseExact(
-                           identity[(processIdSeparator + 1)..],
-                           "N",
-                           out _);
+                return IsApplicationLogName(fileName) ||
+                       IsActivationLogName(fileName);
             }
             catch (Exception ex) when (
                 ex is ArgumentException or NotSupportedException or PathTooLongException)
             {
                 return false;
             }
+        }
+
+        private static bool IsApplicationLogName(string fileName)
+        {
+            const string prefix = "ReToolbox-";
+            if (!fileName.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string identity = fileName[prefix.Length..];
+            int processIdSeparator = identity.IndexOf('-', 16);
+            return identity.Length >= 50 &&
+                   identity[15] == '-' &&
+                   processIdSeparator > 16 &&
+                   DateTime.TryParseExact(
+                       identity[..15],
+                       "yyyyMMdd-HHmmss",
+                       CultureInfo.InvariantCulture,
+                       DateTimeStyles.None,
+                       out _) &&
+                   int.TryParse(
+                       identity[16..processIdSeparator],
+                       NumberStyles.None,
+                       CultureInfo.InvariantCulture,
+                       out int processId) &&
+                   processId > 0 &&
+                   Guid.TryParseExact(
+                       identity[(processIdSeparator + 1)..],
+                       "N",
+                       out _);
+        }
+
+        private static bool IsActivationLogName(string fileName)
+        {
+            const string prefix = "activation-";
+            if (!fileName.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string identity = fileName[prefix.Length..];
+            return identity.Length == 48 &&
+                   identity[15] == '-' &&
+                   DateTime.TryParseExact(
+                       identity[..15],
+                       "yyyyMMdd-HHmmss",
+                       CultureInfo.InvariantCulture,
+                       DateTimeStyles.None,
+                       out _) &&
+                   Guid.TryParseExact(identity[16..], "N", out _);
         }
 
         private static bool IsReparsePoint(string path)

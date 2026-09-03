@@ -3,106 +3,271 @@
     x:Class="ReToolbox.Views.SoftwarePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Margin="55,0,0,0">
+    <Page.Resources>
+        <Style x:Key="SoftwareSurfaceStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style x:Key="SoftwareSectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="SoftwareSecondaryTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="55,0,36,0">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="9*" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock
-            x:Name="TitleTxt"
-            Grid.Row="0"
-            Margin="0,24,36,24"
-            FontSize="40"
-            FontWeight="SemiBold"
-            Text="安装软件" />
+        <ScrollViewer VerticalScrollBarVisibility="Hidden">
+            <StackPanel
+                MaxWidth="1080"
+                Margin="0,20,0,12"
+                HorizontalAlignment="Stretch"
+                Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="软件安装" />
+                    <TextBlock
+                        Style="{StaticResource SoftwareSecondaryTextStyle}"
+                        Text="从可信来源获取常用软件，按选择顺序依次下载并安装" />
+                </StackPanel>
 
-        <Grid Grid.Row="1">
-            <ScrollViewer Height="Auto" VerticalAlignment="Top">
+                <Border Padding="16" Style="{StaticResource SoftwareSurfaceStyle}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="240" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox
+                            x:Name="SearchBox"
+                            AutomationProperties.Name="搜索软件"
+                            Header="搜索软件"
+                            PlaceholderText="搜索名称、分类或安装来源"
+                            TextChanged="SearchBox_TextChanged" />
+                        <ComboBox
+                            x:Name="CategoryComboBox"
+                            Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="筛选软件分类"
+                            Header="分类"
+                            ItemsSource="{x:Bind ViewModel.Categories, Mode=OneWay}"
+                            SelectedIndex="0"
+                            SelectionChanged="CategoryComboBox_SelectionChanged" />
+                    </Grid>
+                </Border>
+
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource SoftwareSectionTitleStyle}" Text="可用软件" />
+                        <TextBlock
+                            x:Name="VisibleCountText"
+                            Style="{StaticResource SoftwareSecondaryTextStyle}"
+                            Text="正在载入软件列表" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Bottom"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            x:Name="SelectVisibleButton"
+                            AutomationProperties.Name="选择当前筛选结果中的全部软件"
+                            Click="SelectVisible_Click"
+                            Content="全选当前结果" />
+                        <Button
+                            x:Name="ClearSelectionButton"
+                            AutomationProperties.Name="清除全部软件选择"
+                            Click="ClearSelection_Click"
+                            Content="清除选择" />
+                    </StackPanel>
+                </Grid>
+
                 <StackPanel x:Name="SoftwareListPanel" />
-            </ScrollViewer>
-        </Grid>
 
-        <Button
-            x:Name="InstallButton"
-            Grid.Row="2"
-            Margin="0,0,36,20"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            Click="InstallSelected_Click"
-            Content="安装"
-            Style="{StaticResource AccentButtonStyle}"
-            IsEnabled="{x:Bind ViewModel.IsInstalling, Mode=OneWay, Converter={StaticResource InvertBoolConverter}}" />
+                <Border
+                    x:Name="EmptyStatePanel"
+                    Padding="28"
+                    Visibility="Collapsed"
+                    Style="{StaticResource SoftwareSurfaceStyle}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="8">
+                        <FontIcon
+                            HorizontalAlignment="Center"
+                            FontSize="28"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE721;" />
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Text="没有找到匹配的软件" />
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource SoftwareSecondaryTextStyle}"
+                            Text="试试更换关键词或选择其他分类" />
+                        <Button
+                            HorizontalAlignment="Center"
+                            Click="ResetFilters_Click"
+                            Content="清除筛选" />
+                    </StackPanel>
+                </Border>
 
-        <ContentDialog
-            x:Name="InstallProgressDialog"
-            Title="正在安装软件"
-            DefaultButton="None">
-            <StackPanel Width="500" Spacing="14">
-                <TextBlock
-                    FontWeight="SemiBold"
-                    Text="{x:Bind ViewModel.CurrentItemText, Mode=OneWay}"
-                    TextWrapping="Wrap" />
+                <StackPanel x:Name="InstallActivitySection" Visibility="Collapsed" Spacing="8">
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource SoftwareSectionTitleStyle}" Text="安装进度" />
+                        <TextBlock
+                            Style="{StaticResource SoftwareSecondaryTextStyle}"
+                            Text="安装期间可以查看实时日志，或取消尚未开始的软件" />
+                    </StackPanel>
+                    <Border Padding="16" Style="{StaticResource SoftwareSurfaceStyle}">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="3">
+                                    <TextBlock
+                                        x:Name="ActivityTitleText"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="正在准备安装" />
+                                    <TextBlock
+                                        Style="{StaticResource SoftwareSecondaryTextStyle}"
+                                        Text="{x:Bind ViewModel.CurrentItemText, Mode=OneWay}" />
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal"
+                                    Spacing="8">
+                                    <Button
+                                        x:Name="RetryFailedButton"
+                                        Visibility="Collapsed"
+                                        Click="RetryFailed_Click"
+                                        Content="重试失败项" />
+                                    <Button
+                                        x:Name="CopyLogsButton"
+                                        Click="CopyAllLogs_Click"
+                                        Content="复制日志" />
+                                    <Button
+                                        x:Name="CancelInstallButton"
+                                        AutomationProperties.Name="取消当前软件安装批次"
+                                        Click="CancelInstall_Click"
+                                        Content="取消安装" />
+                                </StackPanel>
+                            </Grid>
 
-                <StackPanel Spacing="4">
-                    <TextBlock
-                        FontSize="13"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="总体进度" />
-                    <ProgressBar
-                        Maximum="100"
-                        Value="{x:Bind ViewModel.OverallProgress, Mode=OneWay}" />
+                            <StackPanel Spacing="5">
+                                <Grid>
+                                    <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="总体进度" />
+                                    <TextBlock
+                                        HorizontalAlignment="Right"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                        <Run Text="{x:Bind ViewModel.OverallProgress, Mode=OneWay}" /><Run Text="%" />
+                                    </TextBlock>
+                                </Grid>
+                                <ProgressBar Maximum="100" Value="{x:Bind ViewModel.OverallProgress, Mode=OneWay}" />
+                            </StackPanel>
+
+                            <StackPanel
+                                Spacing="5"
+                                Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid>
+                                    <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="当前下载" />
+                                    <TextBlock
+                                        HorizontalAlignment="Right"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                        <Run Text="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" /><Run Text="%" />
+                                    </TextBlock>
+                                </Grid>
+                                <ProgressBar Maximum="100" Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" />
+                            </StackPanel>
+
+                            <Expander Header="查看安装日志">
+                                <ListView
+                                    x:Name="InstallLogListView"
+                                    Height="168"
+                                    Padding="8"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    ItemsSource="{x:Bind ViewModel.InstallLogs}"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                                    ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <TextBlock
+                                                FontFamily="Consolas"
+                                                FontSize="12"
+                                                Text="{Binding}"
+                                                TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
-                <StackPanel
-                    Spacing="4"
-                    Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock
-                        FontSize="13"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="下载进度" />
-                    <ProgressBar
-                        Maximum="100"
-                        Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" />
-                </StackPanel>
-
-                <StackPanel Spacing="4">
-                    <TextBlock
-                        FontSize="13"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="日志" />
-                    <ListView
-                        x:Name="InstallLogListView"
-                        Height="230"
-                        Padding="6"
-                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1"
-                        CornerRadius="6"
-                        ItemsSource="{x:Bind ViewModel.InstallLogs}">
-                        <ListView.ContextFlyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Click="CopyAllLogs_Click" Text="复制全部日志" />
-                            </MenuFlyout>
-                        </ListView.ContextFlyout>
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <TextBlock
-                                    FontFamily="Consolas"
-                                    FontSize="12"
-                                    Text="{Binding}"
-                                    TextWrapping="Wrap" />
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </StackPanel>
+                <InfoBar
+                    x:Name="StatusInfoBar"
+                    IsClosable="True"
+                    IsOpen="False" />
             </StackPanel>
-        </ContentDialog>
+        </ScrollViewer>
+
+        <Border
+            Grid.Row="1"
+            MaxWidth="1080"
+            Margin="0,0,0,20"
+            Padding="14,12"
+            HorizontalAlignment="Stretch"
+            Style="{StaticResource SoftwareSurfaceStyle}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock
+                        x:Name="SelectionSummaryText"
+                        FontSize="15"
+                        FontWeight="SemiBold"
+                        Text="尚未选择软件" />
+                    <TextBlock
+                        x:Name="SelectionHintText"
+                        Style="{StaticResource SoftwareSecondaryTextStyle}"
+                        Text="勾选软件后即可开始批量安装" />
+                </StackPanel>
+                <Button
+                    x:Name="InstallButton"
+                    Grid.Column="1"
+                    MinWidth="160"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="安装所选软件"
+                    Click="InstallSelected_Click"
+                    Content="选择要安装的软件"
+                    IsEnabled="False"
+                    Style="{StaticResource AccentButtonStyle}" />
+            </Grid>
+        </Border>
     </Grid>
 </Page>

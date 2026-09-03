@@ -16,11 +16,13 @@ namespace ReToolbox.Services
 
     public sealed record GitHubReleaseDownload(
         string Repository,
-        string AssetNamePattern);
+        string AssetNamePattern,
+        string ExecutableNamePattern);
 
     public enum SoftwareInstallOutcome
     {
         Installed,
+        InstallerStarted,
         ManualActionRequired,
         Failed
     }
@@ -48,7 +50,7 @@ namespace ReToolbox.Services
                     string.Empty,
                     new Uri("https://www.kaspersky.com.cn/downloads/free-antivirus"),
                     "安全",
-                    "打开卡巴斯基官方免费版页面；产品是否可用取决于所在地区",
+                    "打开卡巴斯基官方页面；当前地区能否获取安装程序由官网决定",
                     "\uEA18"),
                 new(
                     "Geek Uninstaller",
@@ -72,11 +74,12 @@ namespace ReToolbox.Services
                     string.Empty,
                     new Uri("https://github.com/YerongAI/Office-Tool"),
                     "办公",
-                    "自动下载最新 x64 完整版 Release（GitHub 镜像优先）",
+                    "自动下载并运行最新 x64 完整版（GitHub 镜像优先）",
                     "\uE8A5",
                     new GitHubReleaseDownload(
                         "YerongAI/Office-Tool",
-                        @"^Office_Tool_with_runtime_.*_x64\.zip$")),
+                        @"^Office_Tool_with_runtime_.*_x64\.zip$",
+                        @"^Office Tool Plus\.exe$")),
                 new(
                     "UU远程",
                     "NetEase.UURemote",
@@ -91,10 +94,11 @@ namespace ReToolbox.Services
                     string.Empty,
                     new Uri("https://github.com/chthollyphile/folia-major"),
                     "媒体",
-                    "自动下载最新 Windows x64 Release（GitHub 镜像优先）",
+                    "自动下载并运行最新 Windows x64 安装程序（GitHub 镜像优先）",
                     "\uEC4F",
                     new GitHubReleaseDownload(
                         "chthollyphile/folia-major",
+                        @"^Folia-Setup-.*\.exe$",
                         @"^Folia-Setup-.*\.exe$"))
             };
 
@@ -134,6 +138,11 @@ namespace ReToolbox.Services
         {
             return pageUri.Scheme == Uri.UriSchemeHttps &&
                    Entries.Any(entry => entry.OfficialPageUri == pageUri);
+        }
+
+        public static bool IsApprovedGitHubRelease(GitHubReleaseDownload source)
+        {
+            return Entries.Any(entry => entry.GitHubRelease == source);
         }
     }
 }

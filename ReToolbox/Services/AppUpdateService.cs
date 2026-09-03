@@ -11,18 +11,6 @@ using ReToolbox.Utils;
 
 namespace ReToolbox.Services
 {
-    public enum UpdateCheckState
-    {
-        UpToDate,
-        UpdateAvailable,
-        Failed
-    }
-
-    public sealed record UpdateCheckResult(
-        UpdateCheckState State,
-        string Message,
-        UpdateRelease? Release = null);
-
     public sealed record DownloadedUpdate(
         UpdateRelease Release,
         string InstallerPath);
@@ -32,9 +20,6 @@ namespace ReToolbox.Services
         private const string RegistryPath = @"HKLM\SOFTWARE\ReToolbox";
         private const string StartupCheckValue = "CheckUpdatesOnStartup";
         private const string AutomaticDownloadValue = "AutomaticUpdateDownload";
-        private const string LatestReleaseUrl =
-            "https://api.github.com/repos/bileizhen/ReToolbox/releases/latest";
-
         private readonly HttpClient _httpClient;
 
         public AppUpdateService()
@@ -90,54 +75,11 @@ namespace ReToolbox.Services
         public async Task<UpdateCheckResult> CheckForUpdatesAsync(
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                using HttpRequestMessage request = new HttpRequestMessage(
-                    HttpMethod.Get,
-                    LatestReleaseUrl);
-                using HttpResponseMessage response = await _httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-                string json = await response.Content.ReadAsStringAsync(
-                    cancellationToken).ConfigureAwait(false);
-
-                if (!UpdateWorkflow.TryReadLatestRelease(
-                        json,
-                        out UpdateRelease? release) ||
-                    release is null)
-                {
-                    return new UpdateCheckResult(
-                        UpdateCheckState.Failed,
-                        "GitHub Release 未提供可验证的 ReToolbox 安装器");
-                }
-
-                if (!UpdateWorkflow.IsNewerRelease(
-                        release.TagName,
-                        CurrentVersion))
-                {
-                    return new UpdateCheckResult(
-                        UpdateCheckState.UpToDate,
-                        $"当前已是最新版本 v{CurrentVersion}");
-                }
-
-                return new UpdateCheckResult(
-                    UpdateCheckState.UpdateAvailable,
-                    $"发现新版本 {release.TagName}",
-                    release);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex) when (
-                ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-            {
-                return new UpdateCheckResult(
-                    UpdateCheckState.Failed,
-                    $"检查更新失败：{ex.Message}");
-            }
+            return await AppUpdateCheckWorkflow.CheckAsync(
+                _httpClient,
+                CurrentVersion,
+                GetUpdateMetadataCachePath(),
+                cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<DownloadedUpdate> DownloadUpdateAsync(
@@ -329,6 +271,16 @@ namespace ReToolbox.Services
         {
             return Environment.GetFolderPath(
                 Environment.SpecialFolder.CommonApplicationData);
+        }
+
+        private static string GetUpdateMetadataCachePath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData),
+                "ReToolbox",
+                "Update",
+                "latest-release.json");
         }
 
         private static void CleanupStaleUpdateDirectories()

@@ -73,6 +73,9 @@ namespace ReToolbox
                 "正在创建主窗口");
             MainWindow = new MainWindow();
             MainWindow.Activate();
+            _diagnosticLog.WriteInformation(
+                DiagnosticLogSource.Application,
+                "主窗口已激活");
 
             // Kick off the background auto-clean schedule if it was enabled in a
             // previous session. It then runs for the whole app session.

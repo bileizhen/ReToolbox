@@ -74,16 +74,22 @@ public sealed class DiagnosticLogServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task FeedbackArchiveContainsOnlySanitizedApplicationLogsAndMetadata()
+    public async Task FeedbackArchiveContainsOwnedApplicationAndActivationLogs()
     {
         var service = new DiagnosticLogService(_sandbox);
         service.WriteError(
             DiagnosticLogSource.Application,
             $"启动失败：{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}",
             new InvalidOperationException("测试错误"));
+        string activationLog = Path.Combine(
+            _sandbox,
+            "activation-20260903-044205-0123456789abcdef0123456789abcdef.log");
+        File.WriteAllText(
+            activationLog,
+            "activation output");
         File.WriteAllText(
             Path.Combine(_sandbox, "activation-20260101.log"),
-            "activation output");
+            "activation lookalike");
         File.WriteAllText(
             Path.Combine(_sandbox, "notes.txt"),
             "unrelated");
@@ -95,17 +101,21 @@ public sealed class DiagnosticLogServiceTests : IDisposable
         await service.CreateFeedbackArchiveAsync(archivePath);
 
         using ZipArchive archive = ZipFile.OpenRead(archivePath);
-        ZipArchiveEntry logEntry = Assert.Single(
-            archive.Entries,
-            entry => entry.FullName.StartsWith(
-                "logs/",
-                StringComparison.Ordinal));
-        Assert.Equal(
+        string[] logEntries = archive.Entries
+            .Where(entry => entry.FullName.StartsWith("logs/", StringComparison.Ordinal))
+            .Select(entry => entry.FullName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(2, logEntries.Length);
+        Assert.Contains(
             $"logs/{Path.GetFileName(service.CurrentLogPath)}",
-            logEntry.FullName);
+            logEntries);
+        Assert.Contains(
+            $"logs/{Path.GetFileName(activationLog)}",
+            logEntries);
         Assert.DoesNotContain(
             archive.Entries,
-            entry => entry.FullName.Contains("activation", StringComparison.OrdinalIgnoreCase));
+            entry => entry.FullName == "logs/activation-20260101.log");
         Assert.DoesNotContain(
             archive.Entries,
             entry => entry.FullName.Contains("notes", StringComparison.OrdinalIgnoreCase));

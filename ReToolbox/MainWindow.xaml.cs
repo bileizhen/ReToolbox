@@ -164,6 +164,9 @@ namespace ReToolbox
                     throw new InvalidOperationException(
                         $"Frame rejected navigation to {pageType.FullName}.");
                 }
+                _diagnosticLog.WriteInformation(
+                    DiagnosticLogSource.Application,
+                    $"已导航到页面：{pageType.FullName}");
             }
             catch (Exception ex)
             {

@@ -24,6 +24,8 @@
     <Compile Include="..\ReToolbox\Services\DiagnosticLogService.cs" Link="DiagnosticLogService.cs" />
     <Compile Include="..\ReToolbox\Services\GitHubReleaseWorkflow.cs" Link="GitHubReleaseWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\SoftwareCatalog.cs" Link="SoftwareCatalog.cs" />
+    <Compile Include="..\ReToolbox\Services\SoftwareInstallerWorkflow.cs" Link="SoftwareInstallerWorkflow.cs" />
+    <Compile Include="..\ReToolbox\Services\AppUpdateCheckWorkflow.cs" Link="AppUpdateCheckWorkflow.cs" />
     <Compile Include="..\ReToolbox\Services\UpdateWorkflow.cs" Link="UpdateWorkflow.cs" />
     <Compile Include="..\ReToolbox\Utils\ArtifactIntegrity.cs" Link="ArtifactIntegrity.cs" />
     <Compile Include="..\ReToolbox\Utils\GitHubUrlRouting.cs" Link="GitHubUrlRouting.cs" />

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -63,6 +64,11 @@ namespace ReToolbox.Services
             {
                 try
                 {
+                    if (!SoftwareCatalog.IsApprovedGitHubRelease(software.GitHubRelease))
+                    {
+                        throw new InvalidDataException("GitHub Release 来源未通过白名单校验");
+                    }
+
                     downloadProgress?.Report(0);
                     IProgress<string>? releaseProgress = progress is null
                         ? null
@@ -74,25 +80,29 @@ namespace ReToolbox.Services
                             releaseProgress,
                             downloadProgress,
                             cancellationToken);
-                    result = new SoftwareInstallResult(
-                        SoftwareInstallOutcome.ManualActionRequired,
-                        $"{software.Name} 最新 Release 已下载到：{release.FilePath}；请自行运行或解压");
+                    cancellationToken.ThrowIfCancellationRequested();
+                    progress?.Report(LogEntry.Normal("正在准备安装程序..."));
+                    PreparedSoftwareInstaller installer =
+                        SoftwareInstallerWorkflow.PrepareInstaller(
+                            release.FilePath,
+                            release.Release.FileName,
+                            software.GitHubRelease);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    result = LaunchPreparedInstaller(software, installer);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
-                catch (Exception ex) when (
-                    ex is HttpRequestException or IOException or InvalidDataException or
-                    TaskCanceledException)
+                catch (Exception ex)
                 {
                     _diagnosticLog.WriteError(
                         DiagnosticLogSource.Software,
-                        $"{software.Name} Release 下载失败",
+                        $"{software.Name} Release 处理失败",
                         ex);
                     result = new SoftwareInstallResult(
                         SoftwareInstallOutcome.Failed,
-                        $"{software.Name} Release 下载失败：{ex.Message}");
+                        $"{software.Name} Release 处理失败：{ex.Message}");
                 }
             }
             else if (software.OfficialPageUri is not null)
@@ -111,6 +121,10 @@ namespace ReToolbox.Services
                 software.IsInstalled = true;
                 software.InstallStatus = "已安装";
             }
+            else if (result.Outcome == SoftwareInstallOutcome.InstallerStarted)
+            {
+                software.InstallStatus = "安装程序已启动";
+            }
             else if (result.Outcome == SoftwareInstallOutcome.ManualActionRequired)
             {
                 software.InstallStatus = "等待手动安装";
@@ -127,6 +141,47 @@ namespace ReToolbox.Services
             return result;
         }
 
+        private static SoftwareInstallResult LaunchPreparedInstaller(
+            SoftwareItem software,
+            PreparedSoftwareInstaller installer)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = installer.FilePath,
+                    WorkingDirectory = installer.WorkingDirectory,
+                    UseShellExecute = true
+                };
+                if (Process.Start(startInfo) is null)
+                {
+                    throw new InvalidOperationException("Windows 未能创建安装程序进程");
+                }
+
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.InstallerStarted,
+                    $"{software.Name} 安装程序已启动，请在安装向导中继续");
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.ManualActionRequired,
+                    $"已取消启动 {software.Name}；安装文件保留在：{installer.FilePath}");
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == 1260)
+            {
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.ManualActionRequired,
+                    $"应用程序控制策略阻止启动 {software.Name}；请手动运行：{installer.FilePath}");
+            }
+            catch (Exception ex)
+            {
+                return new SoftwareInstallResult(
+                    SoftwareInstallOutcome.Failed,
+                    $"无法启动 {software.Name} 安装程序：{ex.Message}；文件位置：{installer.FilePath}");
+            }
+        }
+
         private async Task<bool> InstallFromWingetAsync(
             SoftwareItem software,
             IProgress<LogEntry>? progress,
@@ -137,6 +192,12 @@ namespace ReToolbox.Services
             {
                 progress?.Report(LogEntry.Normal($"无效的 winget 软件包 ID：{software.WingetId}"));
                 return false;
+            }
+            if (CheckIfInstalled(software.WingetId, software.WingetSource))
+            {
+                progress?.Report(LogEntry.Normal("已经安装，已跳过重复安装"));
+                downloadProgress?.Report(100);
+                return true;
             }
             // winget renders its progress bar live only when it believes it is writing
             // to a real terminal. Behind a redirected pipe it sees
@@ -217,14 +278,26 @@ namespace ReToolbox.Services
                     timeoutCts.Token).ConfigureAwait(false);
             }
 
-            downloadProgress?.Report(exitCode == 0 ? 100 : 0);
-            if (exitCode != 0)
+            bool isInstalled = CheckIfInstalled(
+                software.WingetId,
+                software.WingetSource);
+            bool success = SoftwareInstallerWorkflow.IsSuccessfulWingetOutcome(
+                exitCode,
+                isInstalled);
+            downloadProgress?.Report(success ? 100 : 0);
+            if (!success)
             {
                 progress?.Report(LogEntry.Normal($"winget 退出代码：{exitCode}"));
                 return false;
             }
 
-            return CheckIfInstalled(software.WingetId, software.WingetSource);
+            if (exitCode != 0)
+            {
+                progress?.Report(LogEntry.Normal(
+                    $"winget 返回 {exitCode}，但已确认软件处于安装状态"));
+            }
+
+            return true;
         }
 
         // Fallback when the pseudo console cannot be created: classic redirected

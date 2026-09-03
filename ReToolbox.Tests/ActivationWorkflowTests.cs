@@ -41,6 +41,9 @@ public class ActivationWorkflowTests
         Assert.Contains("run-mas.cmd", service, StringComparison.Ordinal);
         Assert.DoesNotContain("RedirectStandardOutput = true", service, StringComparison.Ordinal);
         Assert.Contains("DiagnosticLogPath", workflow, StringComparison.Ordinal);
+        Assert.Contains("固定校验源下载失败", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("GETMASCN.ps1", service, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Invoke-RestMethod", service, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ActivationOutcome.AwaitingVerification", service, StringComparison.Ordinal);
         Assert.DoesNotContain("AllowRemoteActivationScripts", service, StringComparison.Ordinal);
         Assert.DoesNotContain("（已禁用）", page, StringComparison.Ordinal);

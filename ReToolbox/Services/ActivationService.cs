@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Net.Http;
 using System.Threading.Tasks;
 using ReToolbox.Utils;
 
@@ -225,9 +226,29 @@ namespace ReToolbox.Services
                     FormatLogHint(diagnosticLogPath);
                 return Failure(notActivated);
             }
+            catch (Exception ex) when (
+                ex is HttpRequestException or TaskCanceledException)
+            {
+                diagnosticLogPath = await TryWriteDiagnosticLogAsync(
+                    release,
+                    $"固定脚本下载失败，未执行任何远程代码。{Environment.NewLine}{ex}",
+                    -1,
+                    progress);
+                return Failure(
+                    "固定校验源下载失败，未执行激活脚本。" +
+                    "当前网络可能无法访问 raw.githubusercontent.com。" +
+                    FormatLogHint(diagnosticLogPath));
+            }
             catch (Exception ex)
             {
-                return Failure($"激活失败：{ex.Message}");
+                diagnosticLogPath ??= await TryWriteDiagnosticLogAsync(
+                    release,
+                    $"激活流程失败。{Environment.NewLine}{ex}",
+                    -1,
+                    progress);
+                return Failure(
+                    $"激活失败：{ex.Message}。" +
+                    FormatLogHint(diagnosticLogPath));
             }
             finally
             {
